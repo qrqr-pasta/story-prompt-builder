@@ -16,7 +16,7 @@
 
 ## 💾 ダウンロード
 
-**[📥 StoryPromptBuilder.exe をダウンロード](StoryPromptBuilder.exe)**
+**[📥 最新版をダウンロード](https://github.com/qrqr-pasta/story-prompt-builder/releases/latest)**
 
 > ⚠️ Windows Defenderが警告を出す場合がありますが、「詳細情報」→「実行」で起動できます
 
