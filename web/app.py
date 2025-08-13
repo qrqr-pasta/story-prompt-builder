@@ -12796,6 +12796,7 @@ def main():
     # タイトル
     st.title("🎭 物語生成プロンプトビルダー")
     st.markdown("約1130項目の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
+    st.markdown("出展：『物語要素事典』（2021年4月15日改訂）　https://www.lib.agu.ac.jp/yousojiten/") 
     
     # サイドバーで基本設定
     with st.sidebar:
