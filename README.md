@@ -1,6 +1,6 @@
 # 🎭 物語生成プロンプトビルダー
 
-1131項目の物語要素からランダムに抽出して、生成AI用のプロンプトを作成するデスクトップアプリです。
+約1130項目の物語要素からランダムに抽出して、生成AI用のプロンプトを作成するデスクトップアプリです。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)
@@ -8,7 +8,7 @@
 
 ## 🎯 特徴
 
-- **1131項目の物語要素** を内蔵（完全版データ統合済み）
+- **約1130項目の物語要素** を内蔵
 - **完全スタンドアローン** - Pythonインストール不要
 - **Claude/Gemini/Grok/Copilot** 対応プロンプト生成
 - **カタカナ登場人物名** 自動生成
