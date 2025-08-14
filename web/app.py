@@ -23,7 +23,7 @@ class StoryPromptBuilderWeb:
                 self.story_elements = json.load(f)
             
             # 読み込み成功メッセージ（デバッグ用）
-            print(f"物語要素データ読み込み成功: {len(self.story_elements)}項目")
+            print(f"物語要素データ読み込み成功: 約1130項目")
             
         except FileNotFoundError:
             st.error("⚠️ story_elements.json ファイルが見つかりません。")
