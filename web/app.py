@@ -2,6 +2,7 @@ import streamlit as st
 import random
 import json
 import os
+from pathlib import Path
 
 # ページ設定
 st.set_page_config(
@@ -17,18 +18,36 @@ class StoryPromptBuilderWeb:
     
     def load_story_elements(self):
         """story_elements.jsonファイルを読み込む"""
-        try:
-            # JSONファイルを読み込み
-            with open('story_elements.json', 'r', encoding='utf-8') as f:
-                self.story_elements = json.load(f)
-            
-            # 読み込み成功メッセージ（デバッグ用）
-            print(f"物語要素データ読み込み成功: 約1130項目")
-            
-        except FileNotFoundError:
+        # 複数の可能なファイルパスを試す
+        possible_paths = [
+            'story_elements.json',                    # 現在のディレクトリ
+            'web/story_elements.json',                # webフォルダ内
+            os.path.join(os.path.dirname(__file__), 'story_elements.json'),  # app.pyと同じディレクトリ
+            Path(__file__).parent / 'story_elements.json',  # Pathlib使用
+        ]
+        
+        file_loaded = False
+        
+        for file_path in possible_paths:
+            try:
+                if os.path.exists(file_path):
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        self.story_elements = json.load(f)
+                    
+                    # 読み込み成功メッセージ
+                    print(f"物語要素データ読み込み成功: {len(self.story_elements)}項目 (パス: {file_path})")
+                    file_loaded = True
+                    break
+            except Exception as e:
+                print(f"パス {file_path} での読み込み失敗: {e}")
+                continue
+        
+        if not file_loaded:
             st.error("⚠️ story_elements.json ファイルが見つかりません。")
-            st.info("webフォルダに story_elements.json を配置してください。")
-            # 緊急用サンプルデータ
+            st.info("以下のいずれかの場所に story_elements.json を配置してください：")
+            st.code("\n".join(possible_paths))
+            
+            # 緊急用サンプルデータ（より充実させる）
             self.story_elements = [
                 {
                     "item": "【相打ち】",
@@ -47,14 +66,45 @@ class StoryPromptBuilderWeb:
                         "★３．合言葉を知らぬが、機転を利かせてその場をきりぬける。",
                         "★４．合言葉を知らないため、殺される。"
                     ]
+                },
+                {
+                    "item": "【合図】",
+                    "stars": [
+                        "★１．吉報か凶報かを示す。意図的に、あるいは手違いにより、正しくない合図が送られることがある。",
+                        "★２．秘密の重要な合図。当事者以外には合図の意味はわからない。",
+                        "★３．客をもてなす合図。",
+                        "★４．生まれたのが男児か女児かを知らせる合図。",
+                        "★５．遅すぎた合図。",
+                        "★６．夫への変わらぬ愛を知らせるハンカチ。"
+                    ]
+                },
+                {
+                    "item": "【愛想づかし】",
+                    "stars": [
+                        "★１．遊女が悪人をあざむくために、わざと夫や恋人に冷たい態度をとる・愛想づかしをする。",
+                        "★２．愛する男の家族からの頼みにより、遊女が、男と別れる決心をする。",
+                        "★３．妻が、夫の決心を鈍らせないように、夫に冷たい態度を見せる。",
+                        "★４．権力者からの強要によって、女が恋人に別れを告げる。",
+                        "★５．母親が、娘の幸福を願って愛想づかしをする。"
+                    ]
+                },
+                {
+                    "item": "【笑い】",
+                    "stars": [
+                        "★１．「笑」という文字の起源。",
+                        "★２．古代ギリシア世界に、初めてもたらされた笑い。",
+                        "★３．微笑。",
+                        "★４．少女の謎の笑い。",
+                        "★５．笑いを禁圧する。",
+                        "★６ａ．笑い薬。",
+                        "★６ｂ．笑いガス。",
+                        "★７．笑い死に。",
+                        "★８．作り笑い。",
+                        "★９．家族の死に際しての、日本人の不可解な笑い。"
+                    ]
                 }
             ]
-        except json.JSONDecodeError:
-            st.error("⚠️ story_elements.json の形式が正しくありません。")
-            self.story_elements = []
-        except Exception as e:
-            st.error(f"⚠️ ファイル読み込みエラー: {str(e)}")
-            self.story_elements = []
+            st.warning(f"⚠️ サンプルデータ（{len(self.story_elements)}項目）を使用しています。")
     
     def generate_katakana_name(self):
         """カタカナ2文字の名前を生成"""
@@ -85,7 +135,13 @@ class StoryPromptBuilderWeb:
         selected_elements = []
         used_stars = set()
         
-        for _ in range(count):
+        # 利用可能な要素が少ない場合の対応
+        max_attempts = min(count, len(self.story_elements) * 4)  # 各要素最大4つのstarがあると仮定
+        attempts = 0
+        
+        while len(selected_elements) < count and attempts < max_attempts:
+            attempts += 1
+            
             # ランダムにitemを選択
             item_data = random.choice(self.story_elements)
             item_name = item_data["item"]
@@ -122,153 +178,202 @@ class StoryPromptBuilderWeb:
         return prompt
 
 def main():
-    # アプリケーションインスタンス
-    if 'app' not in st.session_state:
-        st.session_state.app = StoryPromptBuilderWeb()
-    
-    # タイトル
-    st.title("🎭 物語生成プロンプトビルダー")
-    st.markdown("約1130項目の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
-    
-    # JSONファイル読み込み状況を表示
-    if st.session_state.app.story_elements:
-        st.success(f"✅ 物語要素データ: {len(st.session_state.app.story_elements)}項目読み込み完了")
-    else:
-        st.warning("⚠️ 物語要素データが読み込まれていません")
-        return
-    
-    # サイドバーで基本設定
-    with st.sidebar:
-        st.header("⚙️ 基本設定")
+    try:
+        # アプリケーションインスタンス
+        if 'app' not in st.session_state:
+            st.session_state.app = StoryPromptBuilderWeb()
         
-        # 物語要素数
-        elements_count = st.slider("物語要素の数", 1, 5, 3)
+        # タイトル
+        st.title("🎭 物語生成プロンプトビルダー")
+        st.markdown("約1130項目の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
         
-        # 文字数
-        word_count = st.number_input("文字数", value=1000, min_value=100, max_value=5000, step=100)
+        # JSONファイル読み込み状況を表示
+        if st.session_state.app.story_elements:
+            st.success(f"✅ 物語要素データ: {len(st.session_state.app.story_elements)}項目読み込み完了")
+        else:
+            st.error("⚠️ 物語要素データが読み込まれていません")
+            st.stop()  # アプリケーションの実行を停止
         
-        # 登場人物数
-        char_count = st.slider("登場人物数", 1, 10, 2)
-        
-        st.markdown("---")
-        
-        # スタイル選択
-        st.header("🎨 ジャンル・スタイル")
-        story_styles = [
-            "民話",
-            "SF",
-            "ミステリー", 
-            "ファンタジー",
-            "ホラー"
-        ]
-        story_style = st.selectbox("物語のスタイルを選択", story_styles)
-        
-        st.markdown("---")
-        
-        # 終わり方選択
-        st.header("🎯 終わり方")
-        ending_styles = [
-            "読者の予想を裏切る意外な終わり方",
-            "自然でかつ多少意外性のある終わり方", 
-            "設定の整合性を重視した自然な終わり方"
-        ]
-        ending_style = st.selectbox("終わり方のスタイルを選択", ending_styles)
-        
-        st.markdown("---")
-        st.header("👥 登場人物")
-        
-        # 登場人物名の入力
-        characters = []
-        for i in range(char_count):
-            if f'char_{i}' not in st.session_state:
-                st.session_state[f'char_{i}'] = st.session_state.app.generate_katakana_name()
+        # サイドバーで基本設定
+        with st.sidebar:
+            st.header("⚙️ 基本設定")
             
-            char_name = st.text_input(
-                f"登場人物{i+1}", 
-                value=st.session_state[f'char_{i}'],
-                key=f'char_input_{i}'
-            )
-            if char_name:
-                characters.append(char_name)
-        
-        # 名前再生成ボタン
-        if st.button("🎲 名前を再生成"):
+            # 物語要素数
+            elements_count = st.slider("物語要素の数", 1, 5, 3)
+            
+            # 文字数
+            word_count = st.number_input("文字数", value=1000, min_value=100, max_value=5000, step=100)
+            
+            # 登場人物数
+            char_count = st.slider("登場人物数", 1, 10, 2)
+            
+            st.markdown("---")
+            
+            # スタイル選択
+            st.header("🎨 ジャンル・スタイル")
+            story_styles = [
+                "民話",
+                "SF",
+                "ミステリー", 
+                "ファンタジー",
+                "ホラー",
+                "コメディ",
+                "ロマンス",
+                "アドベンチャー"
+            ]
+            story_style = st.selectbox("物語のスタイルを選択", story_styles)
+            
+            st.markdown("---")
+            
+            # 終わり方選択
+            st.header("🎯 終わり方")
+            ending_styles = [
+                "読者の予想を裏切る意外な終わり方",
+                "自然でかつ多少意外性のある終わり方", 
+                "設定の整合性を重視した自然な終わり方",
+                "ハッピーエンド",
+                "ビターエンド",
+                "オープンエンド（読者の想像に委ねる）"
+            ]
+            ending_style = st.selectbox("終わり方のスタイルを選択", ending_styles)
+            
+            st.markdown("---")
+            st.header("👥 登場人物")
+            
+            # 登場人物名の入力
+            characters = []
             for i in range(char_count):
-                st.session_state[f'char_{i}'] = st.session_state.app.generate_katakana_name()
-            st.rerun()
-    
-    # メインエリア
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.header("📋 物語要素")
-        
-        # 抽出ボタン
-        if st.button("🎯 物語要素を抽出", type="primary", use_container_width=True):
-            st.session_state.selected_elements = st.session_state.app.extract_elements(elements_count)
-        
-        # 選択された要素を表示
-        if 'selected_elements' in st.session_state and st.session_state.selected_elements:
-            st.markdown("### 選択された要素:")
-            
-            # 要素の表示と削除機能
-            for i, (item, star) in enumerate(st.session_state.selected_elements):
-                col_element, col_delete = st.columns([4, 1])
+                if f'char_{i}' not in st.session_state:
+                    st.session_state[f'char_{i}'] = st.session_state.app.generate_katakana_name()
                 
-                with col_element:
-                    st.markdown(f"**{i+1}.** {item}")
-                    st.markdown(f"　　{star}")
-                
-                with col_delete:
-                    if st.button("🗑️", key=f"delete_{i}", help="この要素を削除"):
-                        st.session_state.selected_elements.pop(i)
-                        st.rerun()
-                
-                st.markdown("---")
-    
-    with col2:
-        st.header("📝 生成されたプロンプト")
-        
-        # プロンプト生成ボタン
-        if st.button("✨ プロンプトを生成", type="primary", use_container_width=True):
-            if 'selected_elements' in st.session_state and st.session_state.selected_elements and characters:
-                st.session_state.generated_prompt = st.session_state.app.generate_prompt(
-                    st.session_state.selected_elements, 
-                    characters, 
-                    word_count,
-                    story_style,
-                    ending_style
+                char_name = st.text_input(
+                    f"登場人物{i+1}", 
+                    value=st.session_state[f'char_{i}'],
+                    key=f'char_input_{i}',
+                    max_chars=20
                 )
-            else:
-                st.error("物語要素を抽出し、登場人物名を入力してください。")
+                if char_name.strip():  # 空白文字のチェック
+                    characters.append(char_name.strip())
+            
+            # 名前再生成ボタン
+            if st.button("🎲 名前を再生成", help="カタカナの名前を新しく生成します"):
+                for i in range(char_count):
+                    st.session_state[f'char_{i}'] = st.session_state.app.generate_katakana_name()
+                st.rerun()
         
-        # 生成されたプロンプトを表示
-        if 'generated_prompt' in st.session_state:
-            st.markdown("### 生成されたプロンプト:")
-            st.code(st.session_state.generated_prompt, language='markdown')
+        # メインエリア
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.header("📋 物語要素")
             
-            # 設定情報の表示
-            st.markdown("### 📊 設定サマリー:")
-            col_style, col_ending = st.columns(2)
-            with col_style:
-                st.info(f"🎨 **ジャンル**: {story_style}")
-            with col_ending:
-                st.info(f"🎯 **終わり方**: {ending_style}")
+            # 抽出ボタン
+            if st.button("🎯 物語要素を抽出", type="primary", use_container_width=True):
+                with st.spinner("物語要素を抽出中..."):
+                    st.session_state.selected_elements = st.session_state.app.extract_elements(elements_count)
+                    if st.session_state.selected_elements:
+                        st.success(f"✅ {len(st.session_state.selected_elements)}個の要素を抽出しました")
+                    else:
+                        st.error("❌ 要素の抽出に失敗しました")
             
-            # コピーボタン
-            if st.button("📋 クリップボードにコピー", use_container_width=True):
-                st.write("プロンプトを選択してCtrl+C（またはCmd+C）でコピーできます")
-    
-    # フッター
-    st.markdown("---")
-    st.markdown("""
-    <div style='text-align: center; color: gray;'>
-        <p>🎭 物語生成プロンプトビルダー v1.1.0</p>
-        <p>Claude, Gemini, Grok, Copilot等の生成AIで使用できます</p>
-        <p>🆕 ジャンル・終わり方指定機能追加</p>
-        <p>出典：『物語要素事典』（2021年4月15日改訂） <a href="https://www.lib.agu.ac.jp/yousojiten/">https://www.lib.agu.ac.jp/yousojiten/</a></p>
-    </div>
-    """, unsafe_allow_html=True)
+            # 選択された要素を表示
+            if 'selected_elements' in st.session_state and st.session_state.selected_elements:
+                st.markdown("### 選択された要素:")
+                
+                # 要素の表示と削除機能
+                elements_to_remove = []
+                for i, (item, star) in enumerate(st.session_state.selected_elements):
+                    with st.container():
+                        col_element, col_delete = st.columns([5, 1])
+                        
+                        with col_element:
+                            st.markdown(f"**{i+1}.** {item}")
+                            st.markdown(f"　　{star}")
+                        
+                        with col_delete:
+                            if st.button("🗑️", key=f"delete_{i}", help="この要素を削除"):
+                                elements_to_remove.append(i)
+                        
+                        st.divider()
+                
+                # 削除処理（逆順で削除してインデックスの問題を回避）
+                for i in reversed(elements_to_remove):
+                    st.session_state.selected_elements.pop(i)
+                    st.rerun()
+        
+        with col2:
+            st.header("📝 生成されたプロンプト")
+            
+            # プロンプト生成ボタン
+            generate_disabled = not ('selected_elements' in st.session_state and 
+                                   st.session_state.selected_elements and 
+                                   len(characters) > 0)
+            
+            if st.button("✨ プロンプトを生成", 
+                        type="primary", 
+                        use_container_width=True,
+                        disabled=generate_disabled):
+                
+                if generate_disabled:
+                    st.error("物語要素を抽出し、登場人物名を入力してください。")
+                else:
+                    with st.spinner("プロンプトを生成中..."):
+                        st.session_state.generated_prompt = st.session_state.app.generate_prompt(
+                            st.session_state.selected_elements, 
+                            characters, 
+                            word_count,
+                            story_style,
+                            ending_style
+                        )
+                    st.success("✅ プロンプトを生成しました")
+            
+            # 生成されたプロンプトを表示
+            if 'generated_prompt' in st.session_state:
+                st.markdown("### 生成されたプロンプト:")
+                st.code(st.session_state.generated_prompt, language='markdown')
+                
+                # 設定情報の表示
+                st.markdown("### 📊 設定サマリー:")
+                col_style, col_ending = st.columns(2)
+                with col_style:
+                    st.info(f"🎨 **ジャンル**: {story_style}")
+                with col_ending:
+                    st.info(f"🎯 **終わり方**: {ending_style}")
+                
+                # 統計情報
+                with st.expander("📈 詳細情報"):
+                    st.write(f"**文字数設定**: {word_count:,}文字")
+                    st.write(f"**登場人物数**: {len(characters)}人")
+                    st.write(f"**物語要素数**: {len(st.session_state.selected_elements)}個")
+                    st.write(f"**使用データセット**: {len(st.session_state.app.story_elements)}項目")
+                
+                # ダウンロードボタン
+                st.download_button(
+                    label="📥 プロンプトをダウンロード",
+                    data=st.session_state.generated_prompt,
+                    file_name=f"story_prompt_{story_style}_{word_count}chars.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+        
+        # フッター
+        st.markdown("---")
+        st.markdown("""
+        <div style='text-align: center; color: gray; font-size: 0.9em;'>
+            <p>🎭 <strong>物語生成プロンプトビルダー</strong> v1.2.0</p>
+            <p>Claude, Gemini, Grok, Copilot等の生成AIで使用できます</p>
+            <p>🆕 エラーハンドリング・UI改善版</p>
+            <p>出典：『物語要素事典』（2021年4月15日改訂） 
+            <a href="https://www.lib.agu.ac.jp/yousojiten/" target="_blank">
+            https://www.lib.agu.ac.jp/yousojiten/</a></p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.error(f"❌ アプリケーションエラーが発生しました: {str(e)}")
+        st.info("ページを再読み込みしてみてください。")
+        if st.button("🔄 ページを再読み込み"):
+            st.rerun()
 
 if __name__ == "__main__":
     main()
