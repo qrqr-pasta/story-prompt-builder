@@ -14,6 +14,7 @@ st.set_page_config(
 class StoryPromptBuilderWeb:
     def __init__(self):
         self.story_elements = []
+        self.total_stars = 0  # ★の総数を保持
         self.load_story_elements()
     
     def load_story_elements(self):
@@ -34,12 +35,15 @@ class StoryPromptBuilderWeb:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         self.story_elements = json.load(f)
                     
+                    # ★の総数を計算
+                    self.total_stars = sum(len(item["stars"]) for item in self.story_elements)
+                    
                     # 読み込み成功メッセージ
                     item_count = len(self.story_elements)
-                    if item_count >= 1130:
-                        print(f"物語要素データ読み込み成功: 約1130項目 (パス: {file_path})")
+                    if self.total_stars >= 7000:
+                        print(f"物語要素データ読み込み成功: 約{self.total_stars}個の★要素 ({item_count}項目) (パス: {file_path})")
                     else:
-                        print(f"物語要素データ読み込み成功: {item_count}項目 (パス: {file_path})")
+                        print(f"物語要素データ読み込み成功: {self.total_stars}個の★要素 ({item_count}項目) (パス: {file_path})")
                     file_loaded = True
                     break
             except Exception as e:
@@ -108,7 +112,9 @@ class StoryPromptBuilderWeb:
                     ]
                 }
             ]
-            st.warning(f"⚠️ サンプルデータ（{len(self.story_elements)}項目）を使用しています。")
+            # サンプルデータの★総数を計算
+            self.total_stars = sum(len(item["stars"]) for item in self.story_elements)
+            st.warning(f"⚠️ サンプルデータ（{len(self.story_elements)}項目、{self.total_stars}個の★要素）を使用しています。")
     
     def generate_katakana_name(self):
         """カタカナ2文字の名前を生成"""
@@ -140,7 +146,7 @@ class StoryPromptBuilderWeb:
         used_stars = set()
         
         # 利用可能な要素が少ない場合の対応
-        max_attempts = min(count, len(self.story_elements) * 4)  # 各要素最大4つのstarがあると仮定
+        max_attempts = min(count, self.total_stars)  # 実際の★の総数を使用
         attempts = 0
         
         while len(selected_elements) < count and attempts < max_attempts:
@@ -189,16 +195,20 @@ def main():
         
         # タイトル
         st.title("🎭 物語生成プロンプトビルダー")
-        st.markdown("約1130項目の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
+        
+        # ★の数に応じて表示を変更
+        if st.session_state.app.total_stars >= 7000:
+            st.markdown(f"約{st.session_state.app.total_stars}個の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
+        else:
+            st.markdown(f"{st.session_state.app.total_stars}個の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
         
         # JSONファイル読み込み状況を表示
         if st.session_state.app.story_elements:
-            # 1130項目以上の場合は「約1130項目」と表示
-            item_count = len(st.session_state.app.story_elements)
-            if item_count >= 1130:
-                display_text = "約1130項目"
+            # ★の数に応じて表示を変更
+            if st.session_state.app.total_stars >= 7000:
+                display_text = f"約{st.session_state.app.total_stars}個の★要素"
             else:
-                display_text = f"{item_count}項目"
+                display_text = f"{st.session_state.app.total_stars}個の★要素"
             st.success(f"✅ 物語要素データ: {display_text}読み込み完了")
         else:
             st.error("⚠️ 物語要素データが読み込まれていません")
@@ -355,12 +365,11 @@ def main():
                     st.write(f"**文字数設定**: {word_count:,}文字")
                     st.write(f"**登場人物数**: {len(characters)}人")
                     st.write(f"**物語要素数**: {len(st.session_state.selected_elements)}個")
-                    # データセットサイズの表示も約1130項目形式に
-                    dataset_size = len(st.session_state.app.story_elements)
-                    if dataset_size >= 1130:
-                        dataset_display = "約1130項目"
+                    # データセットサイズの表示も★の数に変更
+                    if st.session_state.app.total_stars >= 7000:
+                        dataset_display = f"約{st.session_state.app.total_stars}個の★要素"
                     else:
-                        dataset_display = f"{dataset_size}項目"
+                        dataset_display = f"{st.session_state.app.total_stars}個の★要素"
                     st.write(f"**使用データセット**: {dataset_display}")
                 
                 # ダウンロードボタン
