@@ -116,27 +116,6 @@ class StoryPromptBuilderWeb:
             self.total_stars = sum(len(item["stars"]) for item in self.story_elements)
             st.warning(f"⚠️ サンプルデータ（{len(self.story_elements)}項目、{self.total_stars}個の★要素）を使用しています。")
     
-    def generate_katakana_name(self):
-        """カタカナ2文字の名前を生成"""
-        # 1文字目：拗音、撥音、長音以外
-        first_chars = [
-            'ア', 'イ', 'ウ', 'エ', 'オ',
-            'カ', 'キ', 'ク', 'ケ', 'コ', 'ガ', 'ギ', 'グ', 'ゲ', 'ゴ',
-            'サ', 'シ', 'ス', 'セ', 'ソ', 'ザ', 'ジ', 'ズ', 'ゼ', 'ゾ',
-            'タ', 'チ', 'ツ', 'テ', 'ト', 'ダ', 'ヂ', 'ヅ', 'デ', 'ド',
-            'ナ', 'ニ', 'ヌ', 'ネ', 'ノ',
-            'ハ', 'ヒ', 'フ', 'ヘ', 'ホ', 'バ', 'ビ', 'ブ', 'ベ', 'ボ', 'パ', 'ピ', 'プ', 'ペ', 'ポ',
-            'マ', 'ミ', 'ム', 'メ', 'モ',
-            'ヤ', 'ユ', 'ヨ',
-            'ラ', 'リ', 'ル', 'レ', 'ロ',
-            'ワ', 'ヲ'
-        ]
-        
-        # 2文字目：全てのカタカナ（長音も含む）
-        second_chars = first_chars + ['ャ', 'ュ', 'ョ', 'ン', 'ー']
-        
-        return random.choice(first_chars) + random.choice(second_chars)
-    
     def extract_elements(self, count):
         """物語要素を抽出"""
         if not self.story_elements:
@@ -166,13 +145,12 @@ class StoryPromptBuilderWeb:
         
         return selected_elements
     
-    def generate_prompt(self, selected_elements, characters, word_count, story_style, ending_style):
+    def generate_prompt(self, selected_elements, word_count, story_style, ending_style):
         """プロンプトを生成"""
         prompt = "# 物語創作指示\n\n"
         prompt += "## 基本設定\n"
         prompt += f"- 文字数: 約{word_count}文字\n"
         prompt += f"- ジャンル・スタイル: {story_style}\n"
-        prompt += f"- 登場人物: {', '.join(characters)}\n"
         prompt += f"- 終わり方: {ending_style}\n\n"
         
         prompt += "## 使用する物語要素\n"
@@ -182,7 +160,6 @@ class StoryPromptBuilderWeb:
         prompt += "\n## 指示\n"
         prompt += f"上記の物語要素をすべて含む{story_style}の物語を創作してください。\n"
         prompt += "各要素は自然に物語に組み込み、指定した文字数で完結する物語にしてください。\n"
-        prompt += "登場人物は指定された名前を使用してください。\n"
         prompt += f"物語の結末は「{ending_style}」になるよう心がけてください。"
         
         return prompt
@@ -219,13 +196,10 @@ def main():
             st.header("⚙️ 基本設定")
             
             # 物語要素数
-            elements_count = st.slider("物語要素の数", 1, 5, 2)
+            elements_count = st.slider("物語要素の数", 1, 5, 5)
             
             # 文字数
             word_count = st.number_input("文字数", value=800, min_value=100, max_value=5000, step=100)
-            
-            # 登場人物数
-            char_count = st.slider("登場人物数", 1, 10, 1)
             
             st.markdown("---")
             
@@ -256,30 +230,6 @@ def main():
                 "オープンエンド（読者の想像に委ねる）"
             ]
             ending_style = st.selectbox("終わり方のスタイルを選択", ending_styles)
-            
-            st.markdown("---")
-            st.header("👥 登場人物")
-            
-            # 登場人物名の入力
-            characters = []
-            for i in range(char_count):
-                if f'char_{i}' not in st.session_state:
-                    st.session_state[f'char_{i}'] = st.session_state.app.generate_katakana_name()
-                
-                char_name = st.text_input(
-                    f"登場人物{i+1}", 
-                    value=st.session_state[f'char_{i}'],
-                    key=f'char_input_{i}',
-                    max_chars=20
-                )
-                if char_name.strip():  # 空白文字のチェック
-                    characters.append(char_name.strip())
-            
-            # 名前再生成ボタン
-            if st.button("🎲 名前を再生成", help="カタカナの名前を新しく生成します"):
-                for i in range(char_count):
-                    st.session_state[f'char_{i}'] = st.session_state.app.generate_katakana_name()
-                st.rerun()
         
         # メインエリア
         col1, col2 = st.columns([1, 1])
@@ -326,8 +276,7 @@ def main():
             
             # プロンプト生成ボタン
             generate_disabled = not ('selected_elements' in st.session_state and 
-                                   st.session_state.selected_elements and 
-                                   len(characters) > 0)
+                                   st.session_state.selected_elements)
             
             if st.button("✨ プロンプトを生成", 
                         type="primary", 
@@ -335,12 +284,11 @@ def main():
                         disabled=generate_disabled):
                 
                 if generate_disabled:
-                    st.error("物語要素を抽出し、登場人物名を入力してください。")
+                    st.error("物語要素を抽出してください。")
                 else:
                     with st.spinner("プロンプトを生成中..."):
                         st.session_state.generated_prompt = st.session_state.app.generate_prompt(
                             st.session_state.selected_elements, 
-                            characters, 
                             word_count,
                             story_style,
                             ending_style
@@ -363,7 +311,6 @@ def main():
                 # 統計情報
                 with st.expander("📈 詳細情報"):
                     st.write(f"**文字数設定**: {word_count:,}文字")
-                    st.write(f"**登場人物数**: {len(characters)}人")
                     st.write(f"**物語要素数**: {len(st.session_state.selected_elements)}個")
                     # データセットサイズの表示も★の数に変更
                     if st.session_state.app.total_stars >= 7000:
