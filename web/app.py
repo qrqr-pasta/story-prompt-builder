@@ -198,7 +198,7 @@ def main():
         
         # ★の数に応じて表示を変更
         if st.session_state.app.total_stars >= 7000:
-            st.markdown(f"約{st.session_state.app.total_stars}個の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
+            st.markdown(f"{st.session_state.app.total_stars}個の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
         else:
             st.markdown(f"{st.session_state.app.total_stars}個の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します")
         
@@ -206,7 +206,7 @@ def main():
         if st.session_state.app.story_elements:
             # ★の数に応じて表示を変更
             if st.session_state.app.total_stars >= 7000:
-                display_text = f"約{st.session_state.app.total_stars}個の要素"
+                display_text = f"{st.session_state.app.total_stars}個の要素"
             else:
                 display_text = f"{st.session_state.app.total_stars}個の要素"
             st.success(f"✅ 物語要素データ: {display_text}読み込み完了")
@@ -367,7 +367,7 @@ def main():
                     st.write(f"**物語要素数**: {len(st.session_state.selected_elements)}個")
                     # データセットサイズの表示も★の数に変更
                     if st.session_state.app.total_stars >= 7000:
-                        dataset_display = f"約{st.session_state.app.total_stars}個の★要素"
+                        dataset_display = f"{st.session_state.app.total_stars}個の★要素"
                     else:
                         dataset_display = f"{st.session_state.app.total_stars}個の★要素"
                     st.write(f"**使用データセット**: {dataset_display}")
