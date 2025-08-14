@@ -41,9 +41,9 @@ class StoryPromptBuilderWeb:
                     # 読み込み成功メッセージ
                     item_count = len(self.story_elements)
                     if self.total_stars >= 7000:
-                        print(f"物語要素データ読み込み成功: 約{self.total_stars}個の★要素 ({item_count}項目) (パス: {file_path})")
+                        print(f"物語要素データ読み込み成功: {self.total_stars}個の要素 ({item_count}項目) (パス: {file_path})")
                     else:
-                        print(f"物語要素データ読み込み成功: {self.total_stars}個の★要素 ({item_count}項目) (パス: {file_path})")
+                        print(f"物語要素データ読み込み成功: {self.total_stars}個の要素 ({item_count}項目) (パス: {file_path})")
                     file_loaded = True
                     break
             except Exception as e:
@@ -206,9 +206,9 @@ def main():
         if st.session_state.app.story_elements:
             # ★の数に応じて表示を変更
             if st.session_state.app.total_stars >= 7000:
-                display_text = f"約{st.session_state.app.total_stars}個の★要素"
+                display_text = f"約{st.session_state.app.total_stars}個の要素"
             else:
-                display_text = f"{st.session_state.app.total_stars}個の★要素"
+                display_text = f"{st.session_state.app.total_stars}個の要素"
             st.success(f"✅ 物語要素データ: {display_text}読み込み完了")
         else:
             st.error("⚠️ 物語要素データが読み込まれていません")
