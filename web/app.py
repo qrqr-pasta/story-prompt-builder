@@ -209,13 +209,13 @@ def main():
             st.header("⚙️ 基本設定")
             
             # 物語要素数
-            elements_count = st.slider("物語要素の数", 1, 5, 3)
+            elements_count = st.slider("物語要素の数", 1, 5, 5)
             
             # 文字数
             word_count = st.number_input("文字数", value=1000, min_value=100, max_value=5000, step=100)
             
             # 登場人物数
-            char_count = st.slider("登場人物数", 1, 10, 2)
+            char_count = st.slider("登場人物数", 1, 10, 1)
             
             st.markdown("---")
             
