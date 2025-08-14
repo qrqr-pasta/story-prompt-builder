@@ -35,7 +35,11 @@ class StoryPromptBuilderWeb:
                         self.story_elements = json.load(f)
                     
                     # 読み込み成功メッセージ
-                    print(f"物語要素データ読み込み成功: {len(self.story_elements)}項目 (パス: {file_path})")
+                    item_count = len(self.story_elements)
+                    if item_count >= 1130:
+                        print(f"物語要素データ読み込み成功: 約1130項目 (パス: {file_path})")
+                    else:
+                        print(f"物語要素データ読み込み成功: {item_count}項目 (パス: {file_path})")
                     file_loaded = True
                     break
             except Exception as e:
@@ -189,7 +193,13 @@ def main():
         
         # JSONファイル読み込み状況を表示
         if st.session_state.app.story_elements:
-            st.success(f"✅ 物語要素データ: {len(st.session_state.app.story_elements)}項目読み込み完了")
+            # 1130項目以上の場合は「約1130項目」と表示
+            item_count = len(st.session_state.app.story_elements)
+            if item_count >= 1130:
+                display_text = "約1130項目"
+            else:
+                display_text = f"{item_count}項目"
+            st.success(f"✅ 物語要素データ: {display_text}読み込み完了")
         else:
             st.error("⚠️ 物語要素データが読み込まれていません")
             st.stop()  # アプリケーションの実行を停止
@@ -345,7 +355,13 @@ def main():
                     st.write(f"**文字数設定**: {word_count:,}文字")
                     st.write(f"**登場人物数**: {len(characters)}人")
                     st.write(f"**物語要素数**: {len(st.session_state.selected_elements)}個")
-                    st.write(f"**使用データセット**: {len(st.session_state.app.story_elements)}項目")
+                    # データセットサイズの表示も約1130項目形式に
+                    dataset_size = len(st.session_state.app.story_elements)
+                    if dataset_size >= 1130:
+                        dataset_display = "約1130項目"
+                    else:
+                        dataset_display = f"{dataset_size}項目"
+                    st.write(f"**使用データセット**: {dataset_display}")
                 
                 # ダウンロードボタン
                 st.download_button(
