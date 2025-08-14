@@ -15,7 +15,10 @@ class StoryPromptBuilderWeb:
         self.load_story_elements()
     
     def load_story_elements(self):
-[
+        """内蔵された物語要素データを読み込む"""
+        # 実際の1131項目のデータをここに埋め込む
+        # 現在はサンプルデータ（完全版データに置き換え予定）
+        self.story_elements = [
   {
     "item": "【相打ち】",
     "stars": [
@@ -12725,7 +12728,8 @@ class StoryPromptBuilderWeb:
       "★５．藁人形のかかし。"
     ]
   }
-]    
+]
+    
     def generate_katakana_name(self):
         """カタカナ2文字の名前を生成"""
         # 1文字目：拗音、撥音、長音以外
