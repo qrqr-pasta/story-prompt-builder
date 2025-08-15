@@ -17,15 +17,13 @@ st.set_page_config(
 class ShortStoryGenerator:
     """ショートショート生成システム"""
     
-    def __init__(self, api_key, api_type="demo"):
+    def __init__(self, api_key, api_type):
         self.api_key = api_key
         self.api_type = api_type
         
     def generate_story(self, prompt):
         """ショートショートを生成"""
-        if self.api_type == "demo":
-            return self._generate_demo_story(prompt)
-        elif self.api_type == "claude":
+        if self.api_type == "claude":
             return self._generate_claude_story(prompt)
         elif self.api_type == "grok":
             return self._generate_grok_story(prompt)
@@ -34,7 +32,7 @@ class ShortStoryGenerator:
         elif self.api_type == "gemini":
             return self._generate_gemini_story(prompt)
         else:
-            return self._generate_demo_story(prompt)
+            raise ValueError(f"サポートされていないAPI種類: {self.api_type}")
     
     def _generate_claude_story(self, prompt):
         """Claude API使用"""
@@ -72,12 +70,28 @@ class ShortStoryGenerator:
                 st.success("✅ Claude APIでショートショート生成成功！")
                 return story
             else:
-                st.error(f"Claude API エラー: {response.status_code}")
-                return self._generate_demo_story_with_note(f"Claude APIエラー {response.status_code}")
+                error_msg = f"Claude API エラー: ステータスコード {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    if 'error' in error_detail:
+                        error_msg += f" - {error_detail['error'].get('message', '')}"
+                except:
+                    pass
+                st.error(error_msg)
+                raise Exception(error_msg)
                 
+        except requests.exceptions.Timeout:
+            error_msg = "Claude API 接続タイムアウト"
+            st.error(error_msg)
+            raise Exception(error_msg)
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Claude API 接続エラー: {str(e)}"
+            st.error(error_msg)
+            raise Exception(error_msg)
         except Exception as e:
-            st.error(f"Claude API 接続エラー: {str(e)}")
-            return self._generate_demo_story_with_note("Claude API接続エラー")
+            error_msg = f"Claude API エラー: {str(e)}"
+            st.error(error_msg)
+            raise Exception(error_msg)
     
     def _generate_grok_story(self, prompt):
         """Grok API使用"""
@@ -109,12 +123,28 @@ class ShortStoryGenerator:
                 st.success("✅ Grok APIでショートショート生成成功！")
                 return story
             else:
-                st.error(f"Grok API エラー: {response.status_code}")
-                return self._generate_demo_story_with_note(f"Grok APIエラー {response.status_code}")
+                error_msg = f"Grok API エラー: ステータスコード {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    if 'error' in error_detail:
+                        error_msg += f" - {error_detail['error'].get('message', '')}"
+                except:
+                    pass
+                st.error(error_msg)
+                raise Exception(error_msg)
                 
+        except requests.exceptions.Timeout:
+            error_msg = "Grok API 接続タイムアウト"
+            st.error(error_msg)
+            raise Exception(error_msg)
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Grok API 接続エラー: {str(e)}"
+            st.error(error_msg)
+            raise Exception(error_msg)
         except Exception as e:
-            st.error(f"Grok API 接続エラー: {str(e)}")
-            return self._generate_demo_story_with_note("Grok API接続エラー")
+            error_msg = f"Grok API エラー: {str(e)}"
+            st.error(error_msg)
+            raise Exception(error_msg)
     
     def _generate_openai_story(self, prompt):
         """OpenAI API使用"""
@@ -146,12 +176,28 @@ class ShortStoryGenerator:
                 st.success("✅ OpenAI APIでショートショート生成成功！")
                 return story
             else:
-                st.error(f"OpenAI API エラー: {response.status_code}")
-                return self._generate_demo_story_with_note(f"OpenAI APIエラー {response.status_code}")
+                error_msg = f"OpenAI API エラー: ステータスコード {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    if 'error' in error_detail:
+                        error_msg += f" - {error_detail['error'].get('message', '')}"
+                except:
+                    pass
+                st.error(error_msg)
+                raise Exception(error_msg)
                 
+        except requests.exceptions.Timeout:
+            error_msg = "OpenAI API 接続タイムアウト"
+            st.error(error_msg)
+            raise Exception(error_msg)
+        except requests.exceptions.RequestException as e:
+            error_msg = f"OpenAI API 接続エラー: {str(e)}"
+            st.error(error_msg)
+            raise Exception(error_msg)
         except Exception as e:
-            st.error(f"OpenAI API 接続エラー: {str(e)}")
-            return self._generate_demo_story_with_note("OpenAI API接続エラー")
+            error_msg = f"OpenAI API エラー: {str(e)}"
+            st.error(error_msg)
+            raise Exception(error_msg)
     
     def _generate_gemini_story(self, prompt):
         """Gemini API使用"""
@@ -177,59 +223,28 @@ class ShortStoryGenerator:
                 st.success("✅ Gemini APIでショートショート生成成功！")
                 return story
             else:
-                st.error(f"Gemini API エラー: {response.status_code}")
-                return self._generate_demo_story_with_note(f"Gemini APIエラー {response.status_code}")
+                error_msg = f"Gemini API エラー: ステータスコード {response.status_code}"
+                try:
+                    error_detail = response.json()
+                    if 'error' in error_detail:
+                        error_msg += f" - {error_detail['error'].get('message', '')}"
+                except:
+                    pass
+                st.error(error_msg)
+                raise Exception(error_msg)
                 
+        except requests.exceptions.Timeout:
+            error_msg = "Gemini API 接続タイムアウト"
+            st.error(error_msg)
+            raise Exception(error_msg)
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Gemini API 接続エラー: {str(e)}"
+            st.error(error_msg)
+            raise Exception(error_msg)
         except Exception as e:
-            st.error(f"Gemini API 接続エラー: {str(e)}")
-            return self._generate_demo_story_with_note("Gemini API接続エラー")
-    
-    def _generate_demo_story_with_note(self, error_reason):
-        """エラー理由付きデモショートショート"""
-        demo_story = self._generate_demo_story("")
-        return f"{demo_story}\n\n💡 **注意**: {error_reason}のため、デモショートショートを表示しています。"
-    
-    def _generate_demo_story(self, prompt):
-        """デモ用ショートショート生成"""
-        demo_stories = [
-            """「今日は特別な日だ」と、男は鏡に向かって言った。
-
-40年間、毎朝同じ言葉を繰り返してきた。特別なことなど何一つ起こらない日々だったが、それでも彼は言い続けた。
-
-「今日は特別な日だ」
-
-妻は呆れ、子供たちは笑い、同僚は馬鹿にした。それでも男は言い続けた。
-
-その日の夕方、男は交通事故で亡くなった。
-
-翌朝、鏡の前に誰もいないのに、鏡の向こうから声が聞こえてきた。
-
-「今日は特別な日だ」
-
-家族は慌てて引っ越した。新しい住人が入居した日、再び声が響いた。
-
-「今日は特別な日だ」
-
-実は男は正しかった。毎日が、誰かにとっての特別な日だったのだ。そして今日は、この家に住む人全員にとって、確実に特別な日になる。""",
-            
-            """発明家の田中は、ついに念願の「記憶移植機」を完成させた。
-
-「これで認知症の母の記憶を、若い頃の記憶に置き換えてあげられる」
-
-彼は幸せそうに微笑んだ。機械は完璧に動作し、母親は見事に若い頃の記憶を取り戻した。
-
-「田中くん、ありがとう。おかげで昔のことがよく思い出せるわ」
-
-母は嬉しそうに言った。しかし、その表情が急に曇った。
-
-「でも、あなたは誰ですか？私にお子さんはいらっしゃらないはずですが...」
-
-田中は愕然とした。記憶移植機は完璧に動作していた。あまりにも完璧すぎて、母親の記憶を、田中を産む前の若い頃の記憶に戻してしまったのだ。
-
-彼は自分の存在を、自らの手で消去してしまった。"""
-        ]
-        
-        return random.choice(demo_stories)
+            error_msg = f"Gemini API エラー: {str(e)}"
+            st.error(error_msg)
+            raise Exception(error_msg)
 
 class StoryElementManager:
     """物語要素管理"""
@@ -394,7 +409,7 @@ class StoryElementManager:
 - 人間の心理、社会の皮肉、科学技術の盲点など、深いテーマを含ませる
 - 星新一のような、ユーモアと哲学が混在した独特の味わいを出す
 
-読者が「これは普通の話だな」と思って読み進めているうちに、最後の最後で「え？！そういうことだったの？！」と仰天するような、究極のどんでん返しショートショートを創作してください。
+読者が「これは普通の話だな」と思って読み進めているうちに、最後の最後で「え！？そういうことだったの！？」と仰天するような、究極のどんでん返しショートショートを創作してください。
 
 この作品を読んだ読者が、友人に「すごいショートショートを読んだよ！」と興奮して話したくなるような、記憶に焼き付く傑作を生み出してください。"""
         
@@ -447,7 +462,7 @@ def extract_story_title(story):
     for line in lines:
         line = line.strip()
         if line and not line.startswith(('「', '『')):
-            words = line.replace('。', '').replace('、', '').replace('」', '').replace('』', '').split()
+            words = line.replace('。', '').replace('、', '').replace('（', '').replace('）', '').split()
             if len(words) >= 2:
                 title = ''.join(words[:2])
             else:
@@ -543,10 +558,10 @@ def main():
     if st.session_state.element_manager.story_elements:
         st.success(f"✅ 物語要素データ: {st.session_state.element_manager.total_stars}個の要素読み込み完了")
     else:
-        st.warning("⚠️ JSONファイルが読み込めませんでした。サンプルデータを使用します。")
+        st.warning("⚠️ JSONファイルが読み込まれませんでした。サンプルデータを使用します。")
     
     with st.sidebar:
-        st.header("🔌 AI接続設定")
+        st.header("📌 AI接続設定")
         
         # API接続の有無を選択
         connection_mode = st.radio(
@@ -560,7 +575,6 @@ def main():
             
             ai_options = [
                 "🧠 Claude (Anthropic)",
-                "🎭 デモモード（API不要）",
                 "🚀 Grok (xAI)",
                 "🤖 OpenAI GPT",
                 "✨ Gemini (Google)"
@@ -607,11 +621,6 @@ def main():
                 )
                 if api_key:
                     st.success("✅ Gemini APIキー設定完了")
-                    
-            elif "デモモード" in selected_ai:
-                api_type = "demo"
-                api_key = "demo"
-                st.success("✅ デモモード - API不要")
         else:
             # プロンプトのみ生成の場合
             api_type = "prompt_only"
@@ -653,9 +662,9 @@ def main():
             )
             
         else:
-            # AI接続での生成
+            # API接続での生成
             # API設定確認
-            if api_type != "demo" and not api_key:
+            if not api_key:
                 st.error(f"⚠️ APIキーが必要です")
                 st.stop()
             
@@ -694,6 +703,7 @@ def main():
             
             except Exception as e:
                 st.error(f"ショートショート生成エラー: {str(e)}")
+                st.error("APIキーが正しいか、ネットワーク接続を確認してください。")
     
     # 生成結果表示
     if st.session_state.generation_result:
