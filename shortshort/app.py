@@ -244,18 +244,6 @@ class StoryElementManager:
         # スクリプトと同じディレクトリを基準にする
         script_dir = os.path.dirname(os.path.abspath(__file__))
         
-        # デバッグ情報：現在の作業ディレクトリと存在するファイルを表示
-        current_dir = os.getcwd()
-        st.info(f"📁 現在の作業ディレクトリ: {current_dir}")
-        st.info(f"📂 スクリプトディレクトリ: {script_dir}")
-        
-        try:
-            files_in_script_dir = os.listdir(script_dir)
-            json_files_found = [f for f in files_in_script_dir if f.endswith('.json')]
-            st.info(f"📄 スクリプトディレクトリ内のJSONファイル: {json_files_found}")
-        except Exception as e:
-            st.warning(f"⚠️ ディレクトリ読み取りエラー: {str(e)}")
-        
         # スクリプトと同じディレクトリからJSONファイルを検索
         json_files = [
             os.path.join(script_dir, "story_elements.json"),
@@ -263,21 +251,16 @@ class StoryElementManager:
         ]
         
         for file_path in json_files:
-            filename = os.path.basename(file_path)
-            st.info(f"🔍 検索中: {filename}")
-            st.info(f"🔍 フルパス: {file_path}")
-            
             try:
                 if os.path.exists(file_path):
-                    st.info(f"✅ ファイル発見: {filename}")
                     with open(file_path, 'r', encoding='utf-8') as f:
                         self.story_elements = json.load(f)
                     self.total_stars = sum(len(item["stars"]) for item in self.story_elements)
-                    st.success(f"📁 読み込み成功: {filename} - {len(self.story_elements)}個のアイテム、{self.total_stars}個の要素")
+                    # 成功時のみシンプルに表示
                     return
-                else:
-                    st.warning(f"❌ ファイルが見つかりません: {filename}")
             except Exception as e:
+                # エラー時のみ表示
+                filename = os.path.basename(file_path)
                 st.error(f"⚠️ {filename} 読み込みエラー: {str(e)}")
                 continue
         
