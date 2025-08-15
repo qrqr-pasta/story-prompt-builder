@@ -2,308 +2,292 @@ import streamlit as st
 import random
 import json
 import os
-from pathlib import Path
+import requests
+import time
+import re
+from datetime import datetime
 
 # ページ設定
 st.set_page_config(
-    page_title="物語生成プロンプトビルダー | Story Prompt Builder",
-    page_icon="🎭",
+    page_title="ショートショート自動生成システム",
+    page_icon="📚",
     layout="wide"
 )
 
-# 多言語テキスト定義
-TEXTS = {
-    "ja": {
-        "title": "🎭 物語生成プロンプトビルダー",
-        "description": "個の物語要素からランダムに抽出して、生成AI用のプロンプトを作成します",
-        "data_loaded": "✅ 物語要素データ: {count}個の要素読み込み完了",
-        "data_not_loaded": "⚠️ 物語要素データが読み込まれていません",
-        "file_not_found": "⚠️ story_elements.json ファイルが見つかりません。",
-        "file_location_info": "以下のいずれかの場所に story_elements.json を配置してください：",
-        "sample_data_warning": "⚠️ サンプルデータ（{items}項目、{stars}個の★要素）を使用しています。",
-        
-        # サイドバー
-        "basic_settings": "⚙️ 基本設定",
-        "language": "🌐 言語 / Language",
-        "element_count": "物語要素の数",
-        "word_count": "文字数",
-        "genre_style": "🎨 ジャンル・スタイル",
-        "genre_select": "物語のスタイルを選択",
-        "ending_style": "🎯 終わり方",
-        "ending_select": "終わり方のスタイルを選択",
-        
-        # ジャンル
-        "genre_folk": "民話",
-        "genre_sf": "SF",
-        "genre_mystery": "ミステリー",
-        "genre_fantasy": "ファンタジー",
-        "genre_horror": "ホラー",
-        "genre_comedy": "コメディ",
-        "genre_romance": "ロマンス",
-        "genre_adventure": "アドベンチャー",
-        
-        # 終わり方
-        "ending_natural_unexpected": "自然でかつ多少意外性のある終わり方",
-        "ending_surprising": "読者の予想を裏切る意外な終わり方",
-        "ending_natural": "設定の整合性を重視した自然な終わり方",
-        "ending_happy": "ハッピーエンド",
-        "ending_bitter": "ビターエンド",
-        "ending_open": "オープンエンド（読者の想像に委ねる）",
-        
-        # メインエリア
-        "story_elements": "📋 物語要素",
-        "extract_elements": "🎯 物語要素を抽出",
-        "extracting": "物語要素を抽出中...",
-        "elements_extracted": "✅ {count}個の要素を抽出しました",
-        "extraction_failed": "❌ 要素の抽出に失敗しました",
-        "selected_elements": "### 選択された要素:",
-        "delete_tooltip": "この要素を削除",
-        
-        "generated_prompt": "📝 生成されたプロンプト",
-        "generate_prompt": "✨ プロンプトを生成",
-        "generating": "プロンプトを生成中...",
-        "prompt_generated": "✅ プロンプトを生成しました",
-        "extract_first": "物語要素を抽出してください。",
-        "prompt_title": "### 生成されたプロンプト:",
-        
-        "settings_summary": "### 📊 設定サマリー:",
-        "genre_label": "🎨 **ジャンル**",
-        "ending_label": "🎯 **終わり方**",
-        
-        "detailed_info": "📈 詳細情報",
-        "word_count_setting": "**文字数設定**",
-        "element_count_used": "**物語要素数**",
-        "dataset_size": "**使用データセット**",
-        "download_prompt": "📥 プロンプトをダウンロード",
-        
-        # プロンプトテンプレート
-        "prompt_header": "# 物語創作指示\n\n",
-        "prompt_basic_settings": "## 基本設定\n",
-        "prompt_word_count": "- 文字数: 約{count}文字\n",
-        "prompt_genre": "- ジャンル・スタイル: {genre}\n",
-        "prompt_ending": "- 終わり方: {ending}\n\n",
-        "prompt_elements_header": "## 使用する物語要素\n",
-        "prompt_instructions_header": "\n## 指示\n",
-        "prompt_instructions": "上記の物語要素をすべて含む{genre}の物語を創作してください。\n各要素は自然に物語に組み込み、指定した文字数で完結する物語にしてください。\n物語の結末は「{ending}」になるよう心がけてください。",
-        
-        # フッター
-        "footer_title": "物語生成プロンプトビルダー",
-        "footer_ai_support": "Claude, Gemini, Grok, Copilot等の生成AIで使用できます",
-        "footer_version": "🆕 エラーハンドリング・UI改善版",
-        "footer_source": "出典：『物語要素事典』（2021年4月15日改訂）",
-        
-        # エラー
-        "app_error": "❌ アプリケーションエラーが発生しました",
-        "reload_info": "ページを再読み込みしてみてください。",
-        "reload_button": "🔄 ページを再読み込み"
-    },
+class ShortStoryGenerator:
+    """ショートショート生成システム"""
     
-    "en": {
-        "title": "🎭 Story Prompt Builder",
-        "description": " story elements randomly extracted to create prompts for generative AI",
-        "data_loaded": "✅ Story elements data: {count} elements loaded successfully",
-        "data_not_loaded": "⚠️ Story elements data not loaded",
-        "file_not_found": "⚠️ story_elements.json file not found.",
-        "file_location_info": "Please place story_elements.json in one of the following locations:",
-        "sample_data_warning": "⚠️ Using sample data ({items} items, {stars} ★ elements).",
+    def __init__(self, api_key, api_type="demo"):
+        self.api_key = api_key
+        self.api_type = api_type
         
-        # サイドバー
-        "basic_settings": "⚙️ Basic Settings",
-        "language": "🌐 言語 / Language",
-        "element_count": "Number of Story Elements",
-        "word_count": "Word Count",
-        "genre_style": "🎨 Genre / Style",
-        "genre_select": "Select story style",
-        "ending_style": "🎯 Ending Style",
-        "ending_select": "Select ending style",
-        
-        # ジャンル
-        "genre_folk": "Folk Tale",
-        "genre_sf": "Science Fiction",
-        "genre_mystery": "Mystery",
-        "genre_fantasy": "Fantasy",
-        "genre_horror": "Horror",
-        "genre_comedy": "Comedy",
-        "genre_romance": "Romance",
-        "genre_adventure": "Adventure",
-        
-        # 終わり方
-        "ending_natural_unexpected": "Natural ending with some unexpected elements",
-        "ending_surprising": "Unexpected ending that defies reader expectations",
-        "ending_natural": "Natural ending that respects story consistency",
-        "ending_happy": "Happy Ending",
-        "ending_bitter": "Bitter Ending",
-        "ending_open": "Open Ending (left to reader's imagination)",
-        
-        # メインエリア
-        "story_elements": "📋 Story Elements",
-        "extract_elements": "🎯 Extract Story Elements",
-        "extracting": "Extracting story elements...",
-        "elements_extracted": "✅ {count} elements extracted",
-        "extraction_failed": "❌ Failed to extract elements",
-        "selected_elements": "### Selected Elements:",
-        "delete_tooltip": "Delete this element",
-        
-        "generated_prompt": "📝 Generated Prompt",
-        "generate_prompt": "✨ Generate Prompt",
-        "generating": "Generating prompt...",
-        "prompt_generated": "✅ Prompt generated successfully",
-        "extract_first": "Please extract story elements first.",
-        "prompt_title": "### Generated Prompt:",
-        
-        "settings_summary": "### 📊 Settings Summary:",
-        "genre_label": "🎨 **Genre**",
-        "ending_label": "🎯 **Ending**",
-        
-        "detailed_info": "📈 Detailed Information",
-        "word_count_setting": "**Word Count Setting**",
-        "element_count_used": "**Story Elements Used**",
-        "dataset_size": "**Dataset Size**",
-        "download_prompt": "📥 Download Prompt",
-        
-        # プロンプトテンプレート
-        "prompt_header": "# Story Creation Instructions\n\n",
-        "prompt_basic_settings": "## Basic Settings\n",
-        "prompt_word_count": "- Word count: approximately {count} words\n",
-        "prompt_genre": "- Genre/Style: {genre}\n",
-        "prompt_ending": "- Ending style: {ending}\n\n",
-        "prompt_elements_header": "## Story Elements to Use\n",
-        "prompt_instructions_header": "\n## Instructions\n",
-        "prompt_instructions": "Create a {genre} story that includes all the above story elements.\nIntegrate each element naturally into the story and complete it within the specified word count.\nThe story's conclusion should follow \"{ending}\".",
-        
-        # フッター
-        "footer_title": "Story Prompt Builder",
-        "footer_ai_support": "Compatible with Claude, Gemini, Grok, Copilot and other generative AI",
-        "footer_version": "🆕 Error Handling & UI Improvement Version",
-        "footer_source": "Source: 'Encyclopedia of Story Elements' (Revised April 15, 2021)",
-        
-        # エラー
-        "app_error": "❌ Application error occurred",
-        "reload_info": "Please try reloading the page.",
-        "reload_button": "🔄 Reload Page"
-    }
-}
+    def generate_story(self, prompt):
+        """ショートショートを生成"""
+        if self.api_type == "demo":
+            return self._generate_demo_story(prompt)
+        elif self.api_type == "claude":
+            return self._generate_claude_story(prompt)
+        elif self.api_type == "grok":
+            return self._generate_grok_story(prompt)
+        elif self.api_type == "openai":
+            return self._generate_openai_story(prompt)
+        elif self.api_type == "gemini":
+            return self._generate_gemini_story(prompt)
+        else:
+            return self._generate_demo_story(prompt)
+    
+    def _generate_claude_story(self, prompt):
+        """Claude API使用"""
+        try:
+            st.info("🧠 Claude APIに接続中...")
+            
+            headers = {
+                "x-api-key": self.api_key,
+                "Content-Type": "application/json",
+                "anthropic-version": "2023-06-01"
+            }
+            
+            data = {
+                "model": "claude-3-haiku-20240307",
+                "max_tokens": 3000,
+                "temperature": 0.9,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            }
+            
+            response = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers=headers,
+                json=data,
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                story = result["content"][0]["text"]
+                st.success("✅ Claude APIでショートショート生成成功！")
+                return story
+            else:
+                st.error(f"Claude API エラー: {response.status_code}")
+                return self._generate_demo_story_with_note(f"Claude APIエラー {response.status_code}")
+                
+        except Exception as e:
+            st.error(f"Claude API 接続エラー: {str(e)}")
+            return self._generate_demo_story_with_note("Claude API接続エラー")
+    
+    def _generate_grok_story(self, prompt):
+        """Grok API使用"""
+        try:
+            st.info("🚀 Grok APIに接続中...")
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "model": "grok-beta",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 3000,
+                "temperature": 0.9
+            }
+            
+            response = requests.post(
+                "https://api.x.ai/v1/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                story = result["choices"][0]["message"]["content"]
+                st.success("✅ Grok APIでショートショート生成成功！")
+                return story
+            else:
+                st.error(f"Grok API エラー: {response.status_code}")
+                return self._generate_demo_story_with_note(f"Grok APIエラー {response.status_code}")
+                
+        except Exception as e:
+            st.error(f"Grok API 接続エラー: {str(e)}")
+            return self._generate_demo_story_with_note("Grok API接続エラー")
+    
+    def _generate_openai_story(self, prompt):
+        """OpenAI API使用"""
+        try:
+            st.info("🤖 OpenAI APIに接続中...")
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "model": "gpt-3.5-turbo",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 3000,
+                "temperature": 0.9
+            }
+            
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json=data,
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                story = result["choices"][0]["message"]["content"]
+                st.success("✅ OpenAI APIでショートショート生成成功！")
+                return story
+            else:
+                st.error(f"OpenAI API エラー: {response.status_code}")
+                return self._generate_demo_story_with_note(f"OpenAI APIエラー {response.status_code}")
+                
+        except Exception as e:
+            st.error(f"OpenAI API 接続エラー: {str(e)}")
+            return self._generate_demo_story_with_note("OpenAI API接続エラー")
+    
+    def _generate_gemini_story(self, prompt):
+        """Gemini API使用"""
+        try:
+            st.info("✨ Gemini APIに接続中...")
+            
+            headers = {"Content-Type": "application/json"}
+            
+            data = {
+                "contents": [{"parts": [{"text": prompt}]}]
+            }
+            
+            response = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={self.api_key}",
+                headers=headers,
+                json=data,
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                story = result["candidates"][0]["content"]["parts"][0]["text"]
+                st.success("✅ Gemini APIでショートショート生成成功！")
+                return story
+            else:
+                st.error(f"Gemini API エラー: {response.status_code}")
+                return self._generate_demo_story_with_note(f"Gemini APIエラー {response.status_code}")
+                
+        except Exception as e:
+            st.error(f"Gemini API 接続エラー: {str(e)}")
+            return self._generate_demo_story_with_note("Gemini API接続エラー")
+    
+    def _generate_demo_story_with_note(self, error_reason):
+        """エラー理由付きデモショートショート"""
+        demo_story = self._generate_demo_story("")
+        return f"{demo_story}\n\n💡 **注意**: {error_reason}のため、デモショートショートを表示しています。"
+    
+    def _generate_demo_story(self, prompt):
+        """デモ用ショートショート生成"""
+        demo_stories = [
+            """「今日は特別な日だ」と、男は鏡に向かって言った。
 
-class StoryPromptBuilderWeb:
+40年間、毎朝同じ言葉を繰り返してきた。特別なことなど何一つ起こらない日々だったが、それでも彼は言い続けた。
+
+「今日は特別な日だ」
+
+妻は呆れ、子供たちは笑い、同僚は馬鹿にした。それでも男は言い続けた。
+
+その日の夕方、男は交通事故で亡くなった。
+
+翌朝、鏡の前に誰もいないのに、鏡の向こうから声が聞こえてきた。
+
+「今日は特別な日だ」
+
+家族は慌てて引っ越した。新しい住人が入居した日、再び声が響いた。
+
+「今日は特別な日だ」
+
+実は男は正しかった。毎日が、誰かにとっての特別な日だったのだ。そして今日は、この家に住む人全員にとって、確実に特別な日になる。""",
+            
+            """発明家の田中は、ついに念願の「記憶移植機」を完成させた。
+
+「これで認知症の母の記憶を、若い頃の記憶に置き換えてあげられる」
+
+彼は幸せそうに微笑んだ。機械は完璧に動作し、母親は見事に若い頃の記憶を取り戻した。
+
+「田中くん、ありがとう。おかげで昔のことがよく思い出せるわ」
+
+母は嬉しそうに言った。しかし、その表情が急に曇った。
+
+「でも、あなたは誰ですか？私にお子さんはいらっしゃらないはずですが...」
+
+田中は愕然とした。記憶移植機は完璧に動作していた。あまりにも完璧すぎて、母親の記憶を、田中を産む前の若い頃の記憶に戻してしまったのだ。
+
+彼は自分の存在を、自らの手で消去してしまった。"""
+        ]
+        
+        return random.choice(demo_stories)
+
+class StoryElementManager:
+    """物語要素管理"""
+    
     def __init__(self):
         self.story_elements = []
-        self.total_stars = 0  # ★の総数を保持
+        self.total_stars = 0
         self.load_story_elements()
     
     def load_story_elements(self):
-        """story_elements.jsonファイルを読み込む"""
-        # 複数の可能なファイルパスを試す
-        possible_paths = [
-            'story_elements.json',                    # 現在のディレクトリ
-            'web/story_elements.json',                # webフォルダ内
-            os.path.join(os.path.dirname(__file__), 'story_elements.json'),  # app.pyと同じディレクトリ
-            Path(__file__).parent / 'story_elements.json',  # Pathlib使用
-        ]
+        """JSONファイル読み込み"""
+        json_files = ["story_elements.json", "story_elements - コピー.json"]
         
-        file_loaded = False
-        
-        for file_path in possible_paths:
+        for file_path in json_files:
             try:
                 if os.path.exists(file_path):
                     with open(file_path, 'r', encoding='utf-8') as f:
                         self.story_elements = json.load(f)
-                    
-                    # ★の総数を計算
                     self.total_stars = sum(len(item["stars"]) for item in self.story_elements)
-                    
-                    # 読み込み成功メッセージ
-                    item_count = len(self.story_elements)
-                    if self.total_stars >= 7000:
-                        print(f"物語要素データ読み込み成功: {self.total_stars}個の要素 ({item_count}項目) (パス: {file_path})")
-                    else:
-                        print(f"物語要素データ読み込み成功: {self.total_stars}個の要素 ({item_count}項目) (パス: {file_path})")
-                    file_loaded = True
-                    break
-            except Exception as e:
-                print(f"パス {file_path} での読み込み失敗: {e}")
+                    return
+            except Exception:
                 continue
         
-        if not file_loaded:
-            # 緊急用サンプルデータ（より充実させる）
-            self.story_elements = [
-                {
-                    "item": "【相打ち】",
-                    "stars": [
-                        "★１．刺し違え。",
-                        "★２．互いに呪い合って、相手を動物に変える。",
-                        "★３．猟師と猪の相打ち。",
-                        "★４．互いにミサイルを相手国へ撃ち込む。"
-                    ]
-                },
-                {
-                    "item": "【合言葉】",
-                    "stars": [
-                        "★１．合言葉で、味方であるか否かを確認する。",
-                        "★２．警察や探偵が、合言葉を用いて犯罪組織に潜入する。",
-                        "★３．合言葉を知らぬが、機転を利かせてその場をきりぬける。",
-                        "★４．合言葉を知らないため、殺される。"
-                    ]
-                },
-                {
-                    "item": "【合図】",
-                    "stars": [
-                        "★１．吉報か凶報かを示す。意図的に、あるいは手違いにより、正しくない合図が送られることがある。",
-                        "★２．秘密の重要な合図。当事者以外には合図の意味はわからない。",
-                        "★３．客をもてなす合図。",
-                        "★４．生まれたのが男児か女児かを知らせる合図。",
-                        "★５．遅すぎた合図。",
-                        "★６．夫への変わらぬ愛を知らせるハンカチ。"
-                    ]
-                },
-                {
-                    "item": "【愛想づかし】",
-                    "stars": [
-                        "★１．遊女が悪人をあざむくために、わざと夫や恋人に冷たい態度をとる・愛想づかしをする。",
-                        "★２．愛する男の家族からの頼みにより、遊女が、男と別れる決心をする。",
-                        "★３．妻が、夫の決心を鈍らせないように、夫に冷たい態度を見せる。",
-                        "★４．権力者からの強要によって、女が恋人に別れを告げる。",
-                        "★５．母親が、娘の幸福を願って愛想づかしをする。"
-                    ]
-                },
-                {
-                    "item": "【笑い】",
-                    "stars": [
-                        "★１．「笑」という文字の起源。",
-                        "★２．古代ギリシア世界に、初めてもたらされた笑い。",
-                        "★３．微笑。",
-                        "★４．少女の謎の笑い。",
-                        "★５．笑いを禁圧する。",
-                        "★６ａ．笑い薬。",
-                        "★６ｂ．笑いガス。",
-                        "★７．笑い死に。",
-                        "★８．作り笑い。",
-                        "★９．家族の死に際しての、日本人の不可解な笑い。"
-                    ]
-                }
-            ]
-            # サンプルデータの★総数を計算
-            self.total_stars = sum(len(item["stars"]) for item in self.story_elements)
+        self.story_elements = [
+            {
+                "item": "【合言葉】",
+                "stars": [
+                    "★１．合言葉で、味方であるか否かを確認する。",
+                    "★２．警察や探偵が、合言葉を用いて犯罪組織に潜入する。"
+                ]
+            },
+            {
+                "item": "【魔法】",
+                "stars": [
+                    "★１．触れたものを花に変える魔法。",
+                    "★２．時間を巻き戻す魔法。"
+                ]
+            }
+        ]
+        self.total_stars = sum(len(item["stars"]) for item in self.story_elements)
     
     def extract_elements(self, count):
-        """物語要素を抽出"""
+        """要素抽出"""
         if not self.story_elements:
             return []
-            
+        
         selected_elements = []
         used_stars = set()
         
-        # 利用可能な要素が少ない場合の対応
-        max_attempts = min(count, self.total_stars)  # 実際の★の総数を使用
         attempts = 0
+        max_attempts = min(count * 10, self.total_stars)
         
         while len(selected_elements) < count and attempts < max_attempts:
             attempts += 1
             
-            # ランダムにitemを選択
             item_data = random.choice(self.story_elements)
             item_name = item_data["item"]
             
-            # 使用済みでないstarを選択
             available_stars = [star for star in item_data["stars"] if star not in used_stars]
             
             if available_stars:
@@ -313,242 +297,451 @@ class StoryPromptBuilderWeb:
         
         return selected_elements
     
-    def generate_prompt(self, selected_elements, word_count, story_style, ending_style, lang):
-        """プロンプトを生成"""
-        t = TEXTS[lang]
+    def get_replacement_element(self, used_stars):
+        """使用済み要素を除いて新しい要素を1つ取得"""
+        attempts = 0
+        max_attempts = 100
         
-        prompt = t["prompt_header"]
-        prompt += t["prompt_basic_settings"]
-        prompt += t["prompt_word_count"].format(count=word_count)
-        prompt += t["prompt_genre"].format(genre=story_style)
-        prompt += t["prompt_ending"].format(ending=ending_style)
+        while attempts < max_attempts:
+            attempts += 1
+            
+            item_data = random.choice(self.story_elements)
+            item_name = item_data["item"]
+            
+            available_stars = [star for star in item_data["stars"] if star not in used_stars]
+            
+            if available_stars:
+                selected_star = random.choice(available_stars)
+                return (item_name, selected_star)
         
-        prompt += t["prompt_elements_header"]
+        return None
+    
+    def generate_shortshort_prompt(self, selected_elements, word_count):
+        """ショートショート専用プロンプト生成"""
+        
+        prompt = f"""あなたは星新一のような天才ショートショート作家です。
+
+# 創作ミッション
+読者が最後まで読んだ瞬間に「まさか！」と驚き、「なるほど！」と納得する、記憶に残る傑作ショートショートを創作してください。
+
+# 基本設定
+- 文字数: 約{word_count}文字
+- ジャンル: ショートショート（掌編小説）
+- 必須要件: 意外なオチで読者を驚かせること
+
+# 必須使用要素
+"""
+        
         for i, (item, star) in enumerate(selected_elements, 1):
             prompt += f"{i}. {item} {star}\n"
         
-        prompt += t["prompt_instructions_header"]
-        prompt += t["prompt_instructions"].format(genre=story_style, ending=ending_style)
+        prompt += f"""
+# ショートショートの絶対条件
+- 読者の予想を完全に裏切る意外なオチ・どんでん返しで終わる
+- 短い中に完結した物語を構築する（起承転結の巧妙な構成）
+- 無駄のない簡潔で洗練された文章
+- 最後の一行で全てがひっくり返る衝撃的な結末
+- 日常の中に潜む非日常、または予想外の真実の発見
+- 読後に深い余韻と「なるほど感」を残す
+- 一度読んだら忘れられない印象的なストーリー
+
+# 重要指示
+- 冒頭から読者を引き込む魅力的な導入で始める
+- 中盤で読者にある方向の期待を抱かせる
+- 結末で期待を見事に裏切り、全く予想外の真実を明かす
+- オチは論理的でありながら意外性に富んでいること
+- 伏線は subtle に仕込み、読み返した時に「ああ、そういうことか！」と気づかせる
+- 人間の心理、社会の皮肉、科学技術の盲点など、深いテーマを含ませる
+- 星新一のような、ユーモアと哲学が混在した独特の味わいを出す
+
+読者が「これは普通の話だな」と思って読み進めているうちに、最後の最後で「え？！そういうことだったの？！」と仰天するような、究極のどんでん返しショートショートを創作してください。
+
+この作品を読んだ読者が、友人に「すごいショートショートを読んだよ！」と興奮して話したくなるような、記憶に焼き付く傑作を生み出してください。"""
         
         return prompt
 
-def get_text(key, lang="ja", **kwargs):
-    """言語に応じたテキストを取得"""
-    text = TEXTS[lang].get(key, TEXTS["ja"].get(key, key))
-    if kwargs:
-        try:
-            return text.format(**kwargs)
-        except:
-            return text
-    return text
+def create_story_group_output(story_group):
+    """作品群のアウトプットテキストを作成（☆評価順）"""
+    timestamp = datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')
+    
+    # ☆評価でソート（降順）
+    sorted_stories = sorted(story_group, key=lambda x: x.get('user_rating', 0), reverse=True)
+    
+    output_text = f"""# ショートショート作品群
+生成日時: {timestamp}
+作品数: {len(story_group)}作品
+
+"""
+    
+    for i, story_data in enumerate(sorted_stories, 1):
+        rating_stars = "☆" * story_data.get('user_rating', 0)
+        output_text += f"""## 作品 {i} {rating_stars}
+生成時刻: {story_data['timestamp']}
+使用要素数: {len(story_data['elements'])}個
+
+### 使用した物語要素:
+"""
+        for j, (item, star) in enumerate(story_data['elements'], 1):
+            output_text += f"{j}. {item} {star}\n"
+        
+        output_text += f"""
+### ショートショート:
+{story_data['story']}
+
+"""
+        output_text += "="*80 + "\n\n"
+    
+    return output_text
+
+def extract_story_title(story):
+    """ショートショートからタイトルを抽出"""
+    lines = story.split('\n')
+    
+    # 最初の行が『』「」で囲まれている場合はそれをタイトルとする
+    first_line = lines[0].strip() if lines else ""
+    if first_line.startswith(('『', '「')) and first_line.endswith(('』', '」')):
+        title = first_line.replace('『', '').replace('』', '').replace('「', '').replace('」', '')
+        return title[:20] if title else "無題"
+    
+    # 最初の文から推測
+    for line in lines:
+        line = line.strip()
+        if line and not line.startswith(('「', '『')):
+            words = line.replace('。', '').replace('、', '').replace('」', '').replace('』', '').split()
+            if len(words) >= 2:
+                title = ''.join(words[:2])
+            else:
+                title = line[:15]
+            
+            # 記号や空白を除去
+            title = re.sub(r'[^\w]', '', title)
+            return title[:15] if title else "無題"
+    
+    return "無題"
+
+def display_element_selection_interface(element_manager):
+    """シンプルな物語要素選択インターフェース"""
+    
+    # セッション状態の初期化
+    if 'current_elements' not in st.session_state:
+        st.session_state.current_elements = []
+        st.session_state.used_stars = set()
+    
+    # 初回要素抽出
+    if not st.session_state.current_elements:
+        st.session_state.current_elements = element_manager.extract_elements(5)
+        st.session_state.used_stars = {star for item, star in st.session_state.current_elements}
+    
+    st.markdown("**🎲 物語要素**")
+    st.markdown(f"**現在の要素数: {len(st.session_state.current_elements)}個**")
+    
+    # 要素表示と削除機能
+    elements_to_remove = []
+    
+    for i, (item, star) in enumerate(st.session_state.current_elements):
+        col_element, col_delete = st.columns([6, 1])
+        
+        with col_element:
+            st.markdown(f"**{i+1}.** {item}{star}")
+        
+        with col_delete:
+            if st.button("🗑️", key=f"delete_element_{i}", help="この要素を削除"):
+                elements_to_remove.append(i)
+    
+    # 削除処理
+    if elements_to_remove:
+        for i in reversed(elements_to_remove):
+            removed_item, removed_star = st.session_state.current_elements[i]
+            if removed_star in st.session_state.used_stars:
+                st.session_state.used_stars.remove(removed_star)
+            st.session_state.current_elements.pop(i)
+        st.rerun()
+    
+    # 制御ボタン
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("✅ 生成", type="primary", use_container_width=True):
+            if st.session_state.current_elements:
+                return True, st.session_state.current_elements
+            else:
+                st.error("物語要素が1個以上必要です")
+                return False, []
+    
+    with col2:
+        if st.button("➕ 要素を1個追加", use_container_width=True):
+            new_element = element_manager.get_replacement_element(st.session_state.used_stars)
+            if new_element:
+                st.session_state.current_elements.append(new_element)
+                st.session_state.used_stars.add(new_element[1])
+                st.rerun()
+    
+    with col3:
+        if st.button("🔄 全要素を再抽出", use_container_width=True):
+            st.session_state.current_elements = element_manager.extract_elements(5)
+            st.session_state.used_stars = {star for item, star in st.session_state.current_elements}
+            st.rerun()
+    
+    return False, st.session_state.current_elements
 
 def main():
-    try:
-        # 言語設定の初期化
-        if 'language' not in st.session_state:
-            st.session_state.language = 'ja'
+    if 'element_manager' not in st.session_state:
+        st.session_state.element_manager = StoryElementManager()
+    
+    # 現在の作品群を初期化
+    if 'current_story_group' not in st.session_state:
+        st.session_state.current_story_group = []
+    
+    # 生成結果を初期化
+    if 'generation_result' not in st.session_state:
+        st.session_state.generation_result = None
+    
+    st.markdown("### 📚 ショートショート生成システム")
+    st.markdown("**出典**: 『物語要素事典』（2021年4月15日改訂）https://www.lib.agu.ac.jp/yousojiten/")
+    
+    if st.session_state.element_manager.story_elements:
+        st.success(f"✅ 物語要素データ: {st.session_state.element_manager.total_stars}個の要素読み込み完了")
+    else:
+        st.warning("⚠️ JSONファイルが読み込めませんでした。サンプルデータを使用します。")
+    
+    with st.sidebar:
+        st.header("🔌 AI接続設定")
         
-        # アプリケーションインスタンス
-        if 'app' not in st.session_state:
-            st.session_state.app = StoryPromptBuilderWeb()
+        # API接続の有無を選択
+        connection_mode = st.radio(
+            "実行モード",
+            ["AIへのプロンプトのみ生成", "AIに接続してお話を生成"],
+            index=0
+        )
         
-        lang = st.session_state.language
-        
-        # タイトル
-        st.title(get_text("title", lang))
-        
-        # ★の数に応じて表示を変更
-        if st.session_state.app.total_stars >= 7000:
-            st.markdown(f"{st.session_state.app.total_stars}" + get_text("description", lang))
+        if connection_mode == "AIに接続してお話を生成":
+            st.header("🤖 AI設定")
+            
+            ai_options = [
+                "🧠 Claude (Anthropic)",
+                "🎭 デモモード（API不要）",
+                "🚀 Grok (xAI)",
+                "🤖 OpenAI GPT",
+                "✨ Gemini (Google)"
+            ]
+            
+            selected_ai = st.selectbox("使用するAI", ai_options)
+            
+            if "Claude" in selected_ai:
+                api_type = "claude"
+                api_key = st.text_input(
+                    "🧠 Claude APIキー",
+                    type="password",
+                    help="Anthropic ClaudeのAPIキーを入力してください"
+                )
+                if api_key:
+                    st.success("✅ Claude APIキー設定完了")
+                    
+            elif "Grok" in selected_ai:
+                api_type = "grok"
+                api_key = st.text_input(
+                    "🚀 Grok APIキー",
+                    type="password",
+                    help="xAI GrokのAPIキーを入力してください"
+                )
+                if api_key:
+                    st.success("✅ Grok APIキー設定完了")
+                    
+            elif "OpenAI" in selected_ai:
+                api_type = "openai"
+                api_key = st.text_input(
+                    "🤖 OpenAI APIキー",
+                    type="password",
+                    help="OpenAIのAPIキーを入力してください"
+                )
+                if api_key:
+                    st.success("✅ OpenAI APIキー設定完了")
+                    
+            elif "Gemini" in selected_ai:
+                api_type = "gemini"
+                api_key = st.text_input(
+                    "✨ Gemini APIキー",
+                    type="password",
+                    help="Google GeminiのAPIキーを入力してください"
+                )
+                if api_key:
+                    st.success("✅ Gemini APIキー設定完了")
+                    
+            elif "デモモード" in selected_ai:
+                api_type = "demo"
+                api_key = "demo"
+                st.success("✅ デモモード - API不要")
         else:
-            st.markdown(f"{st.session_state.app.total_stars}" + get_text("description", lang))
+            # プロンプトのみ生成の場合
+            api_type = "prompt_only"
+            api_key = "prompt_only"
+            st.info("📝 プロンプトのみ生成モード")
         
-        # JSONファイル読み込み状況を表示
-        if st.session_state.app.story_elements:
-            # ★の数に応じて表示を変更
-            if st.session_state.app.total_stars >= 7000:
-                display_text = f"{st.session_state.app.total_stars}"
-            else:
-                display_text = f"{st.session_state.app.total_stars}"
-            st.success(get_text("data_loaded", lang, count=display_text))
-        else:
-            st.error(get_text("file_not_found", lang))
-            st.info(get_text("file_location_info", lang))
-            st.code("\n".join([
-                'story_elements.json',
-                'web/story_elements.json',
-                os.path.join(os.path.dirname(__file__), 'story_elements.json'),
-                str(Path(__file__).parent / 'story_elements.json')
-            ]))
-            st.warning(get_text("sample_data_warning", lang, 
-                              items=len(st.session_state.app.story_elements), 
-                              stars=st.session_state.app.total_stars))
+        st.markdown("---")
         
-        # サイドバーで基本設定
-        with st.sidebar:
-            # 言語切り替え
-            st.header(get_text("language", lang))
-            language_options = {
-                "🇯🇵 日本語": "ja",
-                "🇺🇸 English": "en"
-            }
-            selected_lang = st.selectbox(
-                "", 
-                options=list(language_options.keys()),
-                index=0 if lang == "ja" else 1,
-                key="lang_selector"
+        st.header("⚙️ 設定")
+        word_count = st.number_input("文字数", value=1200, min_value=400, max_value=3000, step=100)
+    
+    # 物語要素選択インターフェース
+    generate_requested, selected_elements = display_element_selection_interface(st.session_state.element_manager)
+    
+    # ショートショート生成実行
+    if generate_requested:
+        if connection_mode == "AIへのプロンプトのみ生成":
+            # プロンプトのみ生成
+            prompt = st.session_state.element_manager.generate_shortshort_prompt(
+                selected_elements, word_count
             )
             
-            if language_options[selected_lang] != st.session_state.language:
-                st.session_state.language = language_options[selected_lang]
-                st.rerun()
-            
             st.markdown("---")
+            st.markdown("**📝 生成されたプロンプト**")
+            st.markdown("以下のプロンプトをAIにコピー＆ペーストしてください：")
             
-            st.header(get_text("basic_settings", lang))
+            st.code(prompt, language="text")
             
-            # 物語要素数
-            elements_count = st.slider(get_text("element_count", lang), 1, 5, 2)
+            # プロンプトをダウンロード可能にする
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            prompt_filename = f"{timestamp}_ショートショートプロンプト.txt"
             
-            # 文字数
-            word_count = st.number_input(get_text("word_count", lang), value=800, min_value=100, max_value=5000, step=100)
+            st.download_button(
+                label="📥 プロンプトをダウンロード",
+                data=prompt,
+                file_name=prompt_filename,
+                mime="text/plain",
+                use_container_width=True
+            )
             
-            st.markdown("---")
+        else:
+            # AI接続での生成
+            # API設定確認
+            if api_type != "demo" and not api_key:
+                st.error(f"⚠️ APIキーが必要です")
+                st.stop()
             
-            # スタイル選択
-            st.header(get_text("genre_style", lang))
-            story_styles_keys = ["genre_folk", "genre_sf", "genre_mystery", "genre_fantasy", 
-                               "genre_horror", "genre_comedy", "genre_romance", "genre_adventure"]
-            story_styles = [get_text(key, lang) for key in story_styles_keys]
-            story_style = st.selectbox(get_text("genre_select", lang), story_styles)
-            
-            st.markdown("---")
-            
-            # 終わり方選択
-            st.header(get_text("ending_style", lang))
-            ending_styles_keys = ["ending_natural_unexpected", "ending_surprising", "ending_natural", 
-                                "ending_happy", "ending_bitter", "ending_open"]
-            ending_styles = [get_text(key, lang) for key in ending_styles_keys]
-            ending_style = st.selectbox(get_text("ending_select", lang), ending_styles)
-        
-        # メインエリア
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.header(get_text("story_elements", lang))
-            
-            # 抽出ボタン
-            if st.button(get_text("extract_elements", lang), type="primary", use_container_width=True):
-                with st.spinner(get_text("extracting", lang)):
-                    st.session_state.selected_elements = st.session_state.app.extract_elements(elements_count)
-                    if st.session_state.selected_elements:
-                        st.success(get_text("elements_extracted", lang, count=len(st.session_state.selected_elements)))
-                    else:
-                        st.error(get_text("extraction_failed", lang))
-            
-            # 選択された要素を表示
-            if 'selected_elements' in st.session_state and st.session_state.selected_elements:
-                st.markdown(get_text("selected_elements", lang))
+            try:
+                # 生成システム初期化
+                story_generator = ShortStoryGenerator(api_key, api_type)
                 
-                # 要素の表示と削除機能
-                elements_to_remove = []
-                for i, (item, star) in enumerate(st.session_state.selected_elements):
-                    with st.container():
-                        col_element, col_delete = st.columns([5, 1])
-                        
-                        with col_element:
-                            st.markdown(f"**{i+1}.** {item}")
-                            st.markdown(f"　　{star}")
-                        
-                        with col_delete:
-                            if st.button("🗑️", key=f"delete_{i}", help=get_text("delete_tooltip", lang)):
-                                elements_to_remove.append(i)
-                        
-                        st.divider()
-                
-                # 削除処理（逆順で削除してインデックスの問題を回避）
-                for i in reversed(elements_to_remove):
-                    st.session_state.selected_elements.pop(i)
-                    st.rerun()
-        
-        with col2:
-            st.header(get_text("generated_prompt", lang))
-            
-            # プロンプト生成ボタン
-            generate_disabled = not ('selected_elements' in st.session_state and 
-                                   st.session_state.selected_elements)
-            
-            if st.button(get_text("generate_prompt", lang),
-                        type="primary", 
-                        use_container_width=True,
-                        disabled=generate_disabled):
-                
-                if generate_disabled:
-                    st.error(get_text("extract_first", lang))
-                else:
-                    with st.spinner(get_text("generating", lang)):
-                        st.session_state.generated_prompt = st.session_state.app.generate_prompt(
-                            st.session_state.selected_elements, 
-                            word_count,
-                            story_style,
-                            ending_style,
-                            lang
-                        )
-                    st.success(get_text("prompt_generated", lang))
-            
-            # 生成されたプロンプトを表示
-            if 'generated_prompt' in st.session_state:
-                st.markdown(get_text("prompt_title", lang))
-                st.code(st.session_state.generated_prompt, language='markdown')
-                
-                # 設定情報の表示
-                st.markdown(get_text("settings_summary", lang))
-                col_style, col_ending = st.columns(2)
-                with col_style:
-                    st.info(f"{get_text('genre_label', lang)}: {story_style}")
-                with col_ending:
-                    st.info(f"{get_text('ending_label', lang)}: {ending_style}")
-                
-                # 統計情報
-                with st.expander(get_text("detailed_info", lang)):
-                    st.write(f"{get_text('word_count_setting', lang)}: {word_count:,}" + ("文字" if lang == "ja" else " words"))
-                    st.write(f"{get_text('element_count_used', lang)}: {len(st.session_state.selected_elements)}" + ("個" if lang == "ja" else ""))
-                    # データセットサイズの表示も★の数に変更
-                    if st.session_state.app.total_stars >= 7000:
-                        dataset_display = f"{st.session_state.app.total_stars}" + ("個の★要素" if lang == "ja" else " ★ elements")
-                    else:
-                        dataset_display = f"{st.session_state.app.total_stars}" + ("個の★要素" if lang == "ja" else " ★ elements")
-                    st.write(f"{get_text('dataset_size', lang)}: {dataset_display}")
-                
-                # ダウンロードボタン
-                file_suffix = "chars" if lang == "ja" else "words"
-                st.download_button(
-                    label=get_text("download_prompt", lang),
-                    data=st.session_state.generated_prompt,
-                    file_name=f"story_prompt_{story_style}_{word_count}{file_suffix}.txt",
-                    mime="text/plain",
-                    use_container_width=True
+                # ショートショート特化プロンプト生成
+                prompt = st.session_state.element_manager.generate_shortshort_prompt(
+                    selected_elements, word_count
                 )
-        
-        # フッター
+                
+                # ショートショート生成
+                with st.spinner("📖 ショートショート生成中..."):
+                    story = story_generator.generate_story(prompt)
+                
+                if story:
+                    # 結果保存（要素のディープコピーを作成）
+                    story_data = {
+                        "story": story,
+                        "elements": [(item, star) for item, star in selected_elements],  # ディープコピー
+                        "prompt": prompt,
+                        "timestamp": datetime.now().strftime("%H:%M:%S"),
+                        "word_count": word_count,
+                        "user_rating": 0  # 初期評価は0
+                    }
+                    
+                    # 現在の作品群に追加
+                    st.session_state.current_story_group.append(story_data)
+                    
+                    # 生成結果を更新（前回の結果をクリア）
+                    st.session_state.generation_result = story_data
+                    
+                    st.success("✅ ショートショート生成完了！")
+                    st.rerun()
+            
+            except Exception as e:
+                st.error(f"ショートショート生成エラー: {str(e)}")
+    
+    # 生成結果表示
+    if st.session_state.generation_result:
         st.markdown("---")
-        footer_html = f"""
-        <div style='text-align: center; color: gray; font-size: 0.9em;'>
-            <p>🎭 <strong>{get_text("footer_title", lang)}</strong> v1.3.0</p>
-            <p>{get_text("footer_ai_support", lang)}</p>
-            <p>{get_text("footer_version", lang)}</p>
-            <p>{get_text("footer_source", lang)} 
-            <a href="https://www.lib.agu.ac.jp/yousojiten/" target="_blank">
-            https://www.lib.agu.ac.jp/yousojiten/</a></p>
-        </div>
-        """
-        st.markdown(footer_html, unsafe_allow_html=True)
+        st.markdown("**📖 生成結果**")
         
-    except Exception as e:
-        st.error(f"{get_text('app_error', st.session_state.get('language', 'ja'))}: {str(e)}")
-        st.info(get_text("reload_info", st.session_state.get('language', 'ja')))
-        if st.button(get_text("reload_button", st.session_state.get('language', 'ja'))):
-            st.rerun()
+        story_data = st.session_state.generation_result
+        
+        # 使用要素表示
+        st.markdown("**使用した物語要素:**")
+        for j, (item, star) in enumerate(story_data['elements'], 1):
+            st.markdown(f"**{j}.** {item}{star}")
+        
+        # ショートショート表示
+        st.markdown("**ショートショート:**")
+        st.write(story_data['story'])
+        
+        # ユーザー評価入力（本文の後）
+        st.markdown("---")
+        col_rating, col_spacer = st.columns([2, 3])
+        
+        with col_rating:
+            st.markdown("**あなたの評価**")
+            current_rating = story_data.get('user_rating', 0)
+            user_rating = st.selectbox(
+                "☆の数",
+                options=[0, 1, 2, 3, 4, 5],
+                index=current_rating,
+                format_func=lambda x: "☆" * x if x > 0 else "未評価",
+                key="user_rating_input"
+            )
+            
+            # 評価を保存して要素選択部分に戻る
+            if user_rating != story_data.get('user_rating', 0):
+                # 現在の作品群内の該当作品を更新
+                for i, group_story in enumerate(st.session_state.current_story_group):
+                    if group_story['timestamp'] == story_data['timestamp']:
+                        st.session_state.current_story_group[i]['user_rating'] = user_rating
+                        st.session_state.generation_result['user_rating'] = user_rating
+                        break
+                # 評価後に要素選択部分に戻る
+                st.success(f"評価を保存しました: {'☆' * user_rating if user_rating > 0 else '未評価'}")
+                time.sleep(1)
+                st.rerun()
+    
+    # 作品群表示とダウンロード
+    if st.session_state.current_story_group:
+        st.markdown("---")
+        st.markdown(f"**📋 現在の作品群 ({len(st.session_state.current_story_group)}作品)**")
+        
+        # ☆評価でソート（降順）
+        sorted_stories = sorted(st.session_state.current_story_group, key=lambda x: x.get('user_rating', 0), reverse=True)
+        
+        # 作品群の簡易リスト表示
+        for i, story_data in enumerate(sorted_stories, 1):
+            rating_stars = "☆" * story_data.get('user_rating', 0)
+            rating_display = rating_stars if rating_stars else "未評価"
+            
+            with st.expander(f"作品 {i} [{rating_display}] - {story_data['timestamp']} - 要素{len(story_data['elements'])}個"):
+                st.markdown("**ショートショート:**")
+                st.write(story_data['story'])
+        
+        # ダウンロード
+        story_group_output = create_story_group_output(st.session_state.current_story_group)
+        creation_date = datetime.now().strftime('%Y%m%d_%H%M')
+        
+        # 上位作品のタイトルを取得
+        if sorted_stories:
+            top_story = sorted_stories[0]
+            top_title = extract_story_title(top_story['story'])
+        else:
+            top_title = "作品なし"
+        
+        filename = f"{creation_date}_{top_title}他_{len(st.session_state.current_story_group)}作品.txt"
+        
+        st.download_button(
+            label="📥 作品群をダウンロード",
+            data=story_group_output,
+            file_name=filename,
+            mime="text/plain",
+            use_container_width=True
+        )
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        st.error(f"⚠ システムエラー: {str(e)}")
+        st.write("詳細:")
+        import traceback
+        st.code(traceback.format_exc())
