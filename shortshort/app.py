@@ -481,7 +481,9 @@ def display_element_selection_interface(element_manager):
     if 'current_elements' not in st.session_state:
         st.session_state.current_elements = []
         st.session_state.used_stars = set()
-        st.session_state.element_texts = []  # 編集可能なテキスト用
+    
+    if 'element_texts' not in st.session_state:
+        st.session_state.element_texts = []
     
     # 初回要素抽出
     if not st.session_state.current_elements:
@@ -494,6 +496,10 @@ def display_element_selection_interface(element_manager):
     while len(st.session_state.element_texts) < len(st.session_state.current_elements):
         item, star = st.session_state.current_elements[len(st.session_state.element_texts)]
         st.session_state.element_texts.append(f"{item}{star}")
+    
+    # element_textsが多すぎる場合は削除
+    while len(st.session_state.element_texts) > len(st.session_state.current_elements):
+        st.session_state.element_texts.pop()
     
     st.markdown("**🎲 物語要素**")
     st.markdown(f"**現在の要素数: {len(st.session_state.current_elements)}個**")
@@ -537,10 +543,10 @@ def display_element_selection_interface(element_manager):
             )
             # テキストが変更された場合、保存
             if edited_text != current_text:
-                if i < len(st.session_state.element_texts):
-                    st.session_state.element_texts[i] = edited_text
-                else:
-                    st.session_state.element_texts.append(edited_text)
+                # element_textsのサイズを適切に調整
+                while len(st.session_state.element_texts) <= i:
+                    st.session_state.element_texts.append("")
+                st.session_state.element_texts[i] = edited_text
         
         with col_delete:
             if st.button("🗑️", key=f"delete_element_{i}", help="この要素を削除"):
