@@ -481,23 +481,66 @@ def display_element_selection_interface(element_manager):
     if 'current_elements' not in st.session_state:
         st.session_state.current_elements = []
         st.session_state.used_stars = set()
+        st.session_state.element_texts = []  # 編集可能なテキスト用
     
     # 初回要素抽出
     if not st.session_state.current_elements:
         st.session_state.current_elements = element_manager.extract_elements(5)
         st.session_state.used_stars = {star for item, star in st.session_state.current_elements}
+        # 初期テキストを設定
+        st.session_state.element_texts = [f"{item}{star}" for item, star in st.session_state.current_elements]
+    
+    # element_textsの長さを現在の要素数に合わせる
+    while len(st.session_state.element_texts) < len(st.session_state.current_elements):
+        item, star = st.session_state.current_elements[len(st.session_state.element_texts)]
+        st.session_state.element_texts.append(f"{item}{star}")
     
     st.markdown("**🎲 物語要素**")
     st.markdown(f"**現在の要素数: {len(st.session_state.current_elements)}個**")
     
-    # 要素表示と削除機能
+    # 要素追加ボタンを最初に配置
+    col_add, col_refresh = st.columns([1, 1])
+    with col_add:
+        if st.button("➕ 要素を1個追加", use_container_width=True):
+            new_element = element_manager.get_replacement_element(st.session_state.used_stars)
+            if new_element:
+                st.session_state.current_elements.append(new_element)
+                st.session_state.used_stars.add(new_element[1])
+                # 新しい要素のテキストを追加
+                st.session_state.element_texts.append(f"{new_element[0]}{new_element[1]}")
+                st.rerun()
+    
+    with col_refresh:
+        if st.button("🔄 全要素を再抽出", use_container_width=True):
+            st.session_state.current_elements = element_manager.extract_elements(5)
+            st.session_state.used_stars = {star for item, star in st.session_state.current_elements}
+            # テキストも再設定
+            st.session_state.element_texts = [f"{item}{star}" for item, star in st.session_state.current_elements]
+            st.rerun()
+    
+    st.markdown("---")
+    
+    # 要素表示と編集・削除機能
     elements_to_remove = []
     
-    for i, (item, star) in enumerate(st.session_state.current_elements):
+    for i in range(len(st.session_state.current_elements)):
         col_element, col_delete = st.columns([6, 1])
         
         with col_element:
-            st.markdown(f"**{i+1}.** {item}{star}")
+            # 編集可能なテキストボックス
+            current_text = st.session_state.element_texts[i] if i < len(st.session_state.element_texts) else f"{st.session_state.current_elements[i][0]}{st.session_state.current_elements[i][1]}"
+            edited_text = st.text_input(
+                f"要素 {i+1}",
+                value=current_text,
+                key=f"element_text_{i}",
+                help="この要素を手動で編集できます"
+            )
+            # テキストが変更された場合、保存
+            if edited_text != current_text:
+                if i < len(st.session_state.element_texts):
+                    st.session_state.element_texts[i] = edited_text
+                else:
+                    st.session_state.element_texts.append(edited_text)
         
         with col_delete:
             if st.button("🗑️", key=f"delete_element_{i}", help="この要素を削除"):
@@ -506,39 +549,42 @@ def display_element_selection_interface(element_manager):
     # 削除処理
     if elements_to_remove:
         for i in reversed(elements_to_remove):
-            removed_item, removed_star = st.session_state.current_elements[i]
-            if removed_star in st.session_state.used_stars:
-                st.session_state.used_stars.remove(removed_star)
-            st.session_state.current_elements.pop(i)
+            if i < len(st.session_state.current_elements):
+                removed_item, removed_star = st.session_state.current_elements[i]
+                if removed_star in st.session_state.used_stars:
+                    st.session_state.used_stars.remove(removed_star)
+                st.session_state.current_elements.pop(i)
+            if i < len(st.session_state.element_texts):
+                st.session_state.element_texts.pop(i)
         st.rerun()
     
-    # 制御ボタン
+    # 生成ボタン
     st.markdown("---")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("✅ 生成", type="primary", use_container_width=True):
-            if st.session_state.current_elements:
-                return True, st.session_state.current_elements
+    if st.button("✅ 生成", type="primary", use_container_width=True):
+        if st.session_state.element_texts:
+            # 編集されたテキストを要素として返す
+            edited_elements = []
+            for i, text in enumerate(st.session_state.element_texts):
+                if text.strip():  # 空でない場合のみ追加
+                    # 編集されたテキストを擬似的な(item, star)形式に変換
+                    edited_elements.append(("【編集済み】", text.strip()))
+            
+            if edited_elements:
+                return True, edited_elements
             else:
                 st.error("物語要素が1個以上必要です")
                 return False, []
+        else:
+            st.error("物語要素が1個以上必要です")
+            return False, []
     
-    with col2:
-        if st.button("➕ 要素を1個追加", use_container_width=True):
-            new_element = element_manager.get_replacement_element(st.session_state.used_stars)
-            if new_element:
-                st.session_state.current_elements.append(new_element)
-                st.session_state.used_stars.add(new_element[1])
-                st.rerun()
+    # 現在の編集済み要素を返す（生成しない場合）
+    current_edited_elements = []
+    for i, text in enumerate(st.session_state.element_texts):
+        if text.strip():
+            current_edited_elements.append(("【編集済み】", text.strip()))
     
-    with col3:
-        if st.button("🔄 全要素を再抽出", use_container_width=True):
-            st.session_state.current_elements = element_manager.extract_elements(5)
-            st.session_state.used_stars = {star for item, star in st.session_state.current_elements}
-            st.rerun()
-    
-    return False, st.session_state.current_elements
+    return False, current_edited_elements
 
 def main():
     if 'element_manager' not in st.session_state:
@@ -630,7 +676,7 @@ def main():
         st.markdown("---")
         
         st.header("⚙️ 設定")
-        word_count = st.number_input("文字数", value=1800, min_value=400, max_value=3000, step=100)
+        word_count = st.number_input("文字数", value=1200, min_value=400, max_value=3000, step=100)
     
     # 物語要素選択インターフェース
     generate_requested, selected_elements = display_element_selection_interface(st.session_state.element_manager)
