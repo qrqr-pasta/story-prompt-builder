@@ -630,7 +630,7 @@ def main():
         st.markdown("---")
         
         st.header("⚙️ 設定")
-        word_count = st.number_input("文字数", value=1200, min_value=400, max_value=3000, step=100)
+        word_count = st.number_input("文字数", value=1800, min_value=400, max_value=3000, step=100)
     
     # 物語要素選択インターフェース
     generate_requested, selected_elements = display_element_selection_interface(st.session_state.element_manager)
