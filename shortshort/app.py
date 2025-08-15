@@ -630,7 +630,7 @@ def main():
         st.markdown("---")
         
         st.header("⚙️ 設定")
-        word_count = st.number_input("文字数", value=1800, min_value=400, max_value=3000, step=100)
+        word_count = st.number_input("文字数", value=1200, min_value=400, max_value=3000, step=100)
     
     # 物語要素選択インターフェース
     generate_requested, selected_elements = display_element_selection_interface(st.session_state.element_manager)
@@ -766,7 +766,7 @@ def main():
                 st.markdown("**ショートショート:**")
                 st.write(story_data['story'])
         
-        # ダウンロード
+        # ダウンロードとリセット
         story_group_output = create_story_group_output(st.session_state.current_story_group)
         creation_date = datetime.now().strftime('%Y%m%d_%H%M')
         
@@ -779,13 +779,33 @@ def main():
         
         filename = f"{creation_date}_{top_title}他_{len(st.session_state.current_story_group)}作品.txt"
         
-        st.download_button(
-            label="📥 作品群をダウンロード",
-            data=story_group_output,
-            file_name=filename,
-            mime="text/plain",
-            use_container_width=True
-        )
+        col_download, col_reset = st.columns([3, 1])
+        
+        with col_download:
+            # ダウンロード後に作品群をリセット
+            if st.download_button(
+                label="📥 作品群をダウンロード（ダウンロード後にリセット）",
+                data=story_group_output,
+                file_name=filename,
+                mime="text/plain",
+                use_container_width=True,
+                key="download_and_reset"
+            ):
+                # ダウンロードボタンが押された場合、作品群をリセット
+                st.session_state.current_story_group = []
+                st.session_state.generation_result = None
+                st.success("✅ 作品群をダウンロードしました。作品群をリセットしました。")
+                time.sleep(1)
+                st.rerun()
+        
+        with col_reset:
+            # 手動リセットボタン
+            if st.button("🗑️ リセット", use_container_width=True, help="作品群をクリアします"):
+                st.session_state.current_story_group = []
+                st.session_state.generation_result = None
+                st.success("✅ 作品群をリセットしました。")
+                time.sleep(1)
+                st.rerun()
 
 if __name__ == "__main__":
     try:
