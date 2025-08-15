@@ -249,10 +249,14 @@ class StoryElementManager:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         self.story_elements = json.load(f)
                     self.total_stars = sum(len(item["stars"]) for item in self.story_elements)
+                    st.info(f"📁 読み込み成功: {file_path} - {len(self.story_elements)}個のアイテム、{self.total_stars}個の要素")
                     return
-            except Exception:
+            except Exception as e:
+                st.warning(f"⚠️ {file_path} 読み込みエラー: {str(e)}")
                 continue
         
+        # フォールバック：サンプルデータ
+        st.warning("⚠️ JSONファイルが見つかりません。サンプルデータを使用します。")
         self.story_elements = [
             {
                 "item": "【合言葉】",
